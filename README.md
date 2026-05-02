@@ -4,11 +4,11 @@
 
 ## 特性
 
-- 🕐 **Cron 调度** — 每小时 / 每天 / 每周 / 每月，支持完整 Cron 表达式
+- 🕐 **Cron 调度** — 支持完整 Cron 表达式（每小时 / 每天 / 每月等）
 - 🔗 **线性依赖链** — 多步串行执行，失败即停
 - ✅ **自定义成功条件** — 多规则 OR，规则内 AND（`exit_code` + `output_contains` + `output_not_contains`）
-- 🔄 **智能重试** — Step 级 + Task 级重试，Task 重试从失败的 Step 继续
-- ⏱ **超时控制** — Step 级 + Task 级超时
+- 🔄 **智能重试** — Step 级 + Task 级重试，Task 重试从失败的 Step 继续（非从头开始）
+- ⏱ **超时控制** — Step 级 + Task 级独立超时
 - 📢 **HTTP 通知** — 失败时 POST 到可配置 URL，通知本身可失败
 - 📝 **文件日志** — 每次运行一个日志文件
 - 🚀 **手动触发** — 命令行即时执行
@@ -23,7 +23,7 @@
 pip install -r requirements.txt
 ```
 
-> Python 3.8+（Win2016 兼容）
+> Python 3.8+（Win2016 兼容），依赖仅 `APScheduler` 和 `PyYAML`。
 
 ### 配置任务
 
@@ -125,32 +125,45 @@ success_conditions:
 - **Step 重试**：单步失败后在原步重试指定次数
 - **Task 重试**：从失败的 Step 开始重跑，已成功的 Step 跳过
 
+## 项目结构
+
+```
+taskengine/
+├── engine.py          # 核心引擎（条件判断、配置加载、Step/Task 执行、通知）
+├── cli.py             # CLI 入口（serve / trigger / status 命令调度）
+├── history.py         # 运行历史记录（读写、清理、查询、运行锁）
+├── dashboard.py       # 监控面板（终端表格渲染、ANSI 颜色）
+├── tasks.yaml         # 任务配置
+├── start.bat          # Windows 自启脚本
+├── requirements.txt   # Python 依赖
+├── SPEC.md            # 功能规格说明
+├── LICENSE            # MIT License
+├── tests/
+│   ├── conftest.py          # 共享测试 fixtures
+│   ├── test_engine.py       # 核心逻辑测试
+│   ├── test_history.py      # 历史记录测试
+│   ├── test_dashboard.py    # 面板渲染测试
+│   └── test_integration.py  # 集成测试
+├── logs/              # 运行日志（自动创建）
+├── state/             # 执行状态（自动创建）
+└── history.json       # 运行历史（自动创建）
+```
+
+### 模块依赖
+
+```
+cli.py  →  engine.py  →  history.py
+              ↓
+         dashboard.py  →  history.py
+```
+
+`engine.py` 不依赖 `cli.py`、`dashboard.py` 或 `apscheduler`，可独立测试。
+
 ## 运行测试
 
 ```bash
 pip install pytest
 pytest tests/ -v
-```
-
-## 项目结构
-
-```
-taskengine/
-├── engine.py          # 核心引擎
-├── history.py         # 运行历史记录（读写、清理、查询）
-├── dashboard.py       # 监控面板（终端表格渲染）
-├── tasks.yaml         # 任务配置
-├── start.bat          # Windows 自启脚本
-├── requirements.txt   # Python 依赖
-├── SPEC.md            # 功能规格说明
-├── tests/
-│   ├── test_engine.py       # 核心逻辑测试（37 个）
-│   ├── test_history.py      # 历史记录测试（12 个）
-│   ├── test_dashboard.py    # 面板渲染测试（15 个）
-│   └── test_integration.py  # 集成测试（7 个）
-├── logs/              # 运行日志（自动创建）
-├── state/             # 执行状态（自动创建）
-└── history.json       # 运行历史（自动创建）
 ```
 
 ## License

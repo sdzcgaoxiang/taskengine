@@ -11,6 +11,8 @@ htmlcov/
 # Runtime
 logs/
 state/
+history.json
+.hermes/
 
 # OS
 .DS_Store

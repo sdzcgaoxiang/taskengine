@@ -14,25 +14,6 @@ IS_WINDOWS = os.name == "nt"
 SHELL = ["powershell", "-Command"] if IS_WINDOWS else ["bash", "-c"]
 
 
-# ─── 辅助：创建临时配置 ───
-
-def make_config(tmp_path, tasks_yaml):
-    """把 tasks_yaml dict 写入临时目录的 tasks.yaml"""
-    config_path = tmp_path / "tasks.yaml"
-    config_path.write_text(yaml.dump(tasks_yaml, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-    return str(config_path)
-
-
-def make_task_config(tmp_path, steps, **overrides):
-    """快速构造单个任务的配置，支持 timeout/retry/params 等关键字参数"""
-    task = {
-        "schedule": "0 3 * * *",
-        "steps": steps,
-    }
-    task.update(overrides)
-    return make_config(tmp_path, {"tasks": {"test_task": task}})
-
-
 # ─── 一、成功条件判定 ───
 
 class TestCheckSuccess:
@@ -111,18 +92,18 @@ class TestCheckSuccess:
 class TestLoadConfig:
     """测试 YAML 配置加载和默认值合并"""
 
-    def test_load_simple_task(self, tmp_path):
+    def test_load_simple_task(self, make_task_config):
         from engine import load_config
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo hello"},
         ])
         config = load_config(config_path)
         assert "test_task" in config["tasks"]
         assert config["tasks"]["test_task"]["steps"][0]["name"] == "step1"
 
-    def test_defaults_merge(self, tmp_path):
+    def test_defaults_merge(self, make_config):
         from engine import load_config
-        config_path = make_config(tmp_path, {
+        config_path = make_config({
             "defaults": {
                 "timeout": 600,
                 "retry": 1,
@@ -141,9 +122,9 @@ class TestLoadConfig:
         assert task["timeout"] == 600
         assert task["retry"] == 1
 
-    def test_task_overrides_defaults(self, tmp_path):
+    def test_task_overrides_defaults(self, make_config):
         from engine import load_config
-        config_path = make_config(tmp_path, {
+        config_path = make_config({
             "defaults": {"timeout": 600, "retry": 0},
             "tasks": {
                 "test_task": {
@@ -161,18 +142,18 @@ class TestLoadConfig:
         assert task["timeout"] == 120
         assert task["retry"] == 3
 
-    def test_step_inherits_task_timeout(self, tmp_path):
+    def test_step_inherits_task_timeout(self, make_task_config):
         from engine import load_config
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo hi"},
         ], timeout=999)
         config = load_config(config_path)
         step = config["tasks"]["test_task"]["steps"][0]
         assert step["timeout"] == 999
 
-    def test_params_with_default(self, tmp_path):
+    def test_params_with_default(self, make_task_config):
         from engine import load_config
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "python run.py --date={{date}}"},
         ], params=[{"name": "date", "default": "today"}])
         config = load_config(config_path)
@@ -294,9 +275,9 @@ class TestRunStep:
 class TestRunTask:
     """测试任务级执行：Step串行、失败中断、从失败Step重跑"""
 
-    def test_linear_steps_all_succeed(self, tmp_path):
+    def test_linear_steps_all_succeed(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo step1", "shell": "bash"},
             {"name": "step2", "command": "echo step2", "shell": "bash"},
             {"name": "step3", "command": "echo step3", "shell": "bash"},
@@ -311,9 +292,9 @@ class TestRunTask:
         assert len(result["steps"]) == 3
         assert all(s["success"] for s in result["steps"])
 
-    def test_failure_stops_later_steps(self, tmp_path):
+    def test_failure_stops_later_steps(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo step1", "shell": "bash"},
             {"name": "step2", "command": "exit 1", "shell": "bash"},
             {"name": "step3", "command": "echo step3", "shell": "bash"},
@@ -329,11 +310,11 @@ class TestRunTask:
         assert result["steps"][1]["success"] is False
         assert result["steps"][2]["success"] is None  # skipped
 
-    def test_retry_from_failed_step(self, tmp_path):
+    def test_retry_from_failed_step(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
         marker = tmp_path / "step2_marker.txt"
         step2_cmd = f'if [ -f "{marker}" ]; then echo "step2 ok"; else touch "{marker}"; exit 1; fi'
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo step1", "shell": "bash"},
             {"name": "step2", "command": step2_cmd, "shell": "bash", "retry": 1, "retry_delay": 1},
             {"name": "step3", "command": "echo step3", "shell": "bash"},
@@ -346,14 +327,14 @@ class TestRunTask:
         result = run_task(task, "test_task", {}, logger, state_dir=state_dir)
         assert result["success"] is True
 
-    def test_task_retry_from_failed_step_not_from_beginning(self, tmp_path):
+    def test_task_retry_from_failed_step_not_from_beginning(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
         call_count_file = tmp_path / "step1_calls.txt"
         step1_cmd = f'echo "called" >> "{call_count_file}"; echo step1'
         marker = tmp_path / "step2_marker.txt"
         step2_cmd = f'if [ -f "{marker}" ]; then echo "step2 ok"; else touch "{marker}"; exit 1; fi'
 
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": step1_cmd, "shell": "bash"},
             {"name": "step2", "command": step2_cmd, "shell": "bash", "retry": 1, "retry_delay": 1},
         ], retry=1, retry_delay=1)

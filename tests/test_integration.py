@@ -9,26 +9,13 @@ import pytest
 import yaml
 
 
-def make_config(tmp_path, tasks_yaml):
-    """把 tasks_yaml dict 写入临时目录的 tasks.yaml"""
-    config_path = tmp_path / "tasks.yaml"
-    config_path.write_text(yaml.dump(tasks_yaml, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-    return str(config_path)
-
-
-def make_task_config(tmp_path, steps, **overrides):
-    task = {"schedule": "0 3 * * *", "steps": steps}
-    task.update(overrides)
-    return make_config(tmp_path, {"tasks": {"test_task": task}})
-
-
 class TestRunTaskWritesHistory:
     """测试 run_task 执行后写入 history.json"""
 
-    def test_success_writes_history(self, tmp_path):
+    def test_success_writes_history(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
         from history import load_history
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash"},
         ])
         config = load_config(config_path)
@@ -44,10 +31,10 @@ class TestRunTaskWritesHistory:
         assert records[0]["status"] == "success"
         assert records[0]["step_results"][0]["name"] == "step1"
 
-    def test_failure_writes_history(self, tmp_path):
+    def test_failure_writes_history(self, tmp_path, make_task_config):
         from engine import run_task, load_config, Logger
         from history import load_history
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "exit 1", "shell": "bash"},
         ])
         config = load_config(config_path)
@@ -63,12 +50,11 @@ class TestRunTaskWritesHistory:
         assert records[0]["status"] == "failure"
         assert records[0]["failed_step"] == "step1"
 
-    def test_running_lock_lifecycle(self, tmp_path):
+    def test_running_lock_lifecycle(self, tmp_path, make_task_config):
         """测试运行中锁的标记和清除"""
         from engine import run_task, load_config, Logger
         from history import is_running
-        # 用一个稍微慢的命令来检查 running 状态
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash", "timeout": 10},
         ])
         config = load_config(config_path)
@@ -81,11 +67,11 @@ class TestRunTaskWritesHistory:
         # 完成后 running lock 应该被清除
         assert is_running(state_dir, "test_task") is False
 
-    def test_history_cleanup_after_write(self, tmp_path):
+    def test_history_cleanup_after_write(self, tmp_path, make_task_config):
         """测试写入后自动清理"""
         from engine import run_task, load_config, Logger
         from history import load_history
-        config_path = make_task_config(tmp_path, [
+        config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash"},
         ])
         config = load_config(config_path)

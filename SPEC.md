@@ -4,6 +4,20 @@
 
 Windows Server 2016 桌面会话上运行的轻量定时任务引擎，调度多步脚本任务。
 
+## 架构
+
+```
+engine.py    ← 纯业务逻辑（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
+cli.py       ← CLI 入口（serve / trigger / status 命令调度）
+history.py   ← 运行历史记录（读写、清理、查询、运行锁）
+dashboard.py ← 监控面板（终端表格渲染、ANSI 颜色）
+tasks.yaml   ← 任务配置文件
+```
+
+**调用链：** `python engine.py` → `engine.__main__` → `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_status`。
+
+**依赖方向：** `cli.py` → `engine.py` → `history.py`。`dashboard.py` → `history.py`。`engine.py` 不依赖 `cli.py`、`dashboard.py` 或 `apscheduler`。
+
 ## 一、任务定义（YAML）
 
 | 项目 | 必填 | 默认值 | 说明 |
