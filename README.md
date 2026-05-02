@@ -13,6 +13,7 @@
 - 📝 **文件日志** — 每次运行一个日志文件
 - 🚀 **手动触发** — 命令行即时执行
 - 🔄 **崩溃重启** — 自启脚本，进程挂掉自动拉起
+- 📊 **监控面板** — 命令行实时查看任务状态和执行历史
 
 ## 快速开始
 
@@ -79,6 +80,14 @@ python engine.py serve
 python engine.py trigger daily_report --params '{"date":"2025-01-01"}'
 ```
 
+### 查看状态
+
+```bash
+python engine.py status                      # 一次性快照
+python engine.py status --watch              # 持续刷新（默认 3 秒）
+python engine.py status --task daily_report  # 单任务详情
+```
+
 ### 开机自启
 
 双击 `start.bat`，或将其放到 Windows 启动目录（`shell:startup`）。
@@ -128,13 +137,20 @@ pytest tests/ -v
 ```
 taskengine/
 ├── engine.py          # 核心引擎
+├── history.py         # 运行历史记录（读写、清理、查询）
+├── dashboard.py       # 监控面板（终端表格渲染）
 ├── tasks.yaml         # 任务配置
 ├── start.bat          # Windows 自启脚本
 ├── requirements.txt   # Python 依赖
 ├── SPEC.md            # 功能规格说明
 ├── tests/
-│   └── test_engine.py # 37 个测试用例
-└── logs/              # 运行日志（自动创建）
+│   ├── test_engine.py       # 核心逻辑测试（37 个）
+│   ├── test_history.py      # 历史记录测试（12 个）
+│   ├── test_dashboard.py    # 面板渲染测试（15 个）
+│   └── test_integration.py  # 集成测试（7 个）
+├── logs/              # 运行日志（自动创建）
+├── state/             # 执行状态（自动创建）
+└── history.json       # 运行历史（自动创建）
 ```
 
 ## License

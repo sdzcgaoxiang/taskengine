@@ -112,3 +112,67 @@ python engine.py trigger <task_name> [--params '{"key":"value"}']
 
 - 开机自启
 - 崩溃自动重启
+
+## 十一、监控面板
+
+### 命令
+
+```bash
+python engine.py status                      # 显示一次快照，退出
+python engine.py status --watch              # 持续刷新（默认 3 秒），Ctrl+C 退出
+python engine.py status --watch 5            # 自定义刷新间隔
+python engine.py status --task daily_report  # 查看单个任务的 Step 级详情
+```
+
+### 数据来源
+
+运行历史记录存储在 `history.json`（与 `engine.py` 同目录），每次任务执行完成后自动追加。
+
+**保留策略：** 每个 Task 默认保留最近 50 条记录，超出自动清理最旧的。
+
+### 运行状态检测
+
+通过锁文件 `state/{task_name}.running` 标记任务正在运行。任务开始时创建，结束时删除。`status` 命令检查该文件判断 Running 状态。
+
+### 全部任务视图
+
+```
+TaskEngine Dashboard — 2026-05-03 08:15:30
+
+Task              Schedule       Status     Last Run              Duration  Steps
+───────────────── ───────────── ────────── ───────────────────── ───────── ──────
+daily_report      0 3 * * *     ● Success  2026-05-03 03:05:32   5m 32s    3/3 ✓
+data_sync         0 * * * *     ● Failure  2026-05-03 08:12:15   12m 03s   0/1 ✗
+monthly_cleanup   0 2 1 * *     ○ Never    —                     —         —
+
+3 tasks | 1 success, 1 failure, 1 never run
+```
+
+### 单任务详情视图（`--task`）
+
+```
+Task: daily_report
+Schedule: 0 3 * * *  |  Timeout: 3600s  |  Retry: 2
+
+Last 5 runs:
+  2026-05-03T03:00:00  Success  5m 32s  Steps: prepare ✓ → process ✓ → verify ✓
+  2026-05-02T03:00:00  Failure  12m 03s Steps: prepare ✓ → process ✗ (timeout)
+
+Step details (latest run):
+  prepare   Success  exit=0  12.3s  retries=0
+  process   Success  exit=0  280.5s retries=0
+  verify    Success  exit=0  39.3s  retries=0
+```
+
+### ANSI 颜色
+
+- Success → 绿色
+- Failure → 红色
+- Running → 黄色
+- Never → 灰色
+
+Windows 10+ / Windows Server 2016+ 原生支持 ANSI 转义序列。
+
+### 无新依赖
+
+纯 Python stdlib 实现，不需要额外的第三方库。

@@ -13,6 +13,8 @@ from pathlib import Path
 
 import yaml
 from apscheduler.schedulers.blocking import BlockingScheduler
+from history import append_history, cleanup_history, mark_running, clear_running
+from dashboard import render_summary, render_task_detail
 
 
 # ─── 成功条件判定 ───
@@ -227,6 +229,7 @@ def run_step(step, params, logger, run_id="0"):
         cmd_args = ["powershell", "-Command", command]
 
     retry_count = 0
+    step_start = time.time()
     for attempt in range(1 + max_retry):
         try:
             proc = subprocess.Popen(
@@ -251,6 +254,7 @@ def run_step(step, params, logger, run_id="0"):
                     "output": "",
                     "fail_reason": "timeout",
                     "retry_count": retry_count,
+                    "duration": round(time.time() - step_start, 1),
                 }
                 logger.step_output(f"TIMEOUT after {timeout}s")
                 logger.step_end(step["name"], False, -1, 0, fail_reason="timeout")
@@ -269,6 +273,7 @@ def run_step(step, params, logger, run_id="0"):
                     "exit_code": exit_code,
                     "output": output,
                     "retry_count": retry_count,
+                    "duration": round(time.time() - step_start, 1),
                 }
             else:
                 if attempt < max_retry:
@@ -283,6 +288,7 @@ def run_step(step, params, logger, run_id="0"):
                     "output": output,
                     "fail_reason": f"exit_code={exit_code}, no rule matched",
                     "retry_count": retry_count,
+                    "duration": round(time.time() - step_start, 1),
                 }
 
         except Exception as e:
@@ -297,6 +303,7 @@ def run_step(step, params, logger, run_id="0"):
                 "output": "",
                 "fail_reason": str(e),
                 "retry_count": retry_count,
+                "duration": round(time.time() - step_start, 1),
             }
 
 
@@ -325,7 +332,8 @@ def _describe_matched_rule(conditions, exit_code, output):
 
 # ─── Task 执行 ───
 
-def run_task(task, task_name, params, logger, state_dir=None, http_notify_config=None):
+def run_task(task, task_name, params, logger, state_dir=None, http_notify_config=None,
+             history_file=None, history_keep=50):
     """执行整个 Task，从失败 Step 重跑"""
     steps = task["steps"]
     task_timeout = task.get("timeout", 3600)
@@ -335,12 +343,17 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
     run_id = f"{task_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     logger.start_run(task_name, run_id)
 
+    # 标记运行中
+    if state_dir:
+        mark_running(state_dir, task_name)
+
     # 解析参数默认值
     resolved_params = {}
     for p in task.get("params", []):
         resolved_params[p["name"]] = p.get("default", "")
     resolved_params.update(params)
 
+    started_at = datetime.now().isoformat()
     start_time = time.time()
 
     # 加载已有状态（用于 Task 级重试时从失败 Step 继续）
@@ -399,7 +412,10 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
             duration = time.time() - start_time
             logger.end_run(task_name, True, duration)
             result = {"success": True, "steps": step_results, "duration": duration}
+            _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep)
             _do_notify(task_name, result, http_notify_config)
+            if state_dir:
+                clear_running(state_dir, task_name)
             return result
 
         # Task 重试
@@ -413,8 +429,57 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
     duration = time.time() - start_time
     logger.end_run(task_name, False, duration)
     result = {"success": False, "steps": step_results, "duration": duration}
+    _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep)
     _do_notify(task_name, result, http_notify_config)
+    if state_dir:
+        clear_running(state_dir, task_name)
     return result
+
+
+def _build_step_results_for_history(step_results):
+    """构建 history 记录的 step_results"""
+    history_steps = []
+    for s in step_results:
+        entry = {"name": s.get("name", "?")}
+        if s.get("skipped") and s.get("success") is None:
+            entry["status"] = "skipped"
+        elif s.get("success"):
+            entry["status"] = "success"
+        else:
+            entry["status"] = "failure"
+        entry["exit_code"] = s.get("exit_code")
+        entry["duration"] = round(s.get("duration", 0), 1) if s.get("duration") else None
+        entry["retries"] = s.get("retry_count", 0)
+        history_steps.append(entry)
+    return history_steps
+
+
+def _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep):
+    """写入运行历史记录"""
+    if not history_file:
+        return
+    # 找到失败的 step
+    failed_step = None
+    fail_reason = None
+    for s in result.get("steps", []):
+        if not s.get("success") and not s.get("skipped"):
+            failed_step = s.get("name")
+            fail_reason = s.get("fail_reason")
+            break
+
+    entry = {
+        "task": task_name,
+        "run_id": run_id,
+        "status": "success" if result["success"] else "failure",
+        "started_at": started_at,
+        "finished_at": datetime.now().isoformat(),
+        "duration": round(duration, 1),
+        "step_results": _build_step_results_for_history(result.get("steps", [])),
+        "failed_step": failed_step,
+        "fail_reason": fail_reason,
+    }
+    append_history(history_file, entry)
+    cleanup_history(history_file, keep=history_keep)
 
 
 def _do_notify(task_name, result, http_notify_config):
@@ -502,7 +567,7 @@ def parse_trigger_args(args):
 def main():
     """主入口"""
     if len(sys.argv) < 2:
-        print("Usage: python engine.py serve | trigger <task_name> [--params '{...}']")
+        print("Usage: python engine.py serve | trigger <task_name> [--params '{...}'] | status [options]")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -512,6 +577,7 @@ def main():
     config_path = os.path.join(base_dir, "tasks.yaml")
     log_dir = os.path.join(base_dir, "logs")
     state_dir = os.path.join(base_dir, "state")
+    history_file = os.path.join(base_dir, "history.json")
 
     if command == "trigger":
         parsed = parse_trigger_args(sys.argv[1:])
@@ -522,7 +588,8 @@ def main():
             sys.exit(1)
         task = config["tasks"][task_name]
         logger = Logger(log_dir)
-        result = run_task(task, task_name, parsed["params"], logger, state_dir=state_dir)
+        result = run_task(task, task_name, parsed["params"], logger, state_dir=state_dir,
+                         history_file=history_file)
         print(f"Task {task_name}: {'SUCCESS' if result['success'] else 'FAILURE'}")
         sys.exit(0 if result["success"] else 1)
 
@@ -534,7 +601,8 @@ def main():
         def queued_runner(task_name, params):
             task = config["tasks"][task_name]
             run_task(task, task_name, params, logger, state_dir=state_dir,
-                     http_notify_config=task.get("http_notify"))
+                     http_notify_config=task.get("http_notify"),
+                     history_file=history_file)
 
         queue = TaskQueue(runner=queued_runner)
 
@@ -557,6 +625,69 @@ def main():
             scheduler.start()
         except (KeyboardInterrupt, SystemExit):
             pass
+
+    elif command == "status":
+        # 解析 status 参数
+        args = sys.argv[2:]
+        task_filter = None
+        watch = False
+        watch_interval = 3
+        cli_config_path = config_path
+        cli_history_file = history_file
+        cli_state_dir = state_dir
+
+        i = 0
+        while i < len(args):
+            if args[i] == "--task" and i + 1 < len(args):
+                task_filter = args[i + 1]
+                i += 2
+            elif args[i] == "--watch":
+                watch = True
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    watch_interval = int(args[i + 1])
+                    i += 2
+                else:
+                    i += 1
+            elif args[i] == "--config" and i + 1 < len(args):
+                cli_config_path = args[i + 1]
+                i += 2
+            elif args[i] == "--history" and i + 1 < len(args):
+                cli_history_file = args[i + 1]
+                i += 2
+            elif args[i] == "--state-dir" and i + 1 < len(args):
+                cli_state_dir = args[i + 1]
+                i += 2
+            else:
+                i += 1
+
+        config = load_config(cli_config_path)
+
+        def show():
+            print(f"\033[H\033[2J" if watch else "", end="")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"TaskEngine Dashboard — {now}")
+            print()
+            if task_filter:
+                if task_filter not in config["tasks"]:
+                    print(f"Task not found: {task_filter}")
+                    return
+                task_config = config["tasks"][task_filter]
+                desc = task_config.get("description", "")
+                if desc:
+                    print(f'Description: "{desc}"')
+                print(render_task_detail(task_config, cli_history_file, task_name=task_filter, limit=5))
+            else:
+                print(render_summary(config, cli_history_file, state_dir=cli_state_dir))
+
+        if watch:
+            try:
+                while True:
+                    show()
+                    time.sleep(watch_interval)
+            except KeyboardInterrupt:
+                pass
+        else:
+            show()
 
     else:
         print(f"Unknown command: {command}")
