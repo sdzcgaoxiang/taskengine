@@ -1,0 +1,28 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / pytest
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Runtime
+logs/
+state/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+venv/
+.venv/

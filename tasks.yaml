@@ -1,0 +1,56 @@
+# TaskEngine 任务配置
+# 详细说明见 SPEC.md
+
+defaults:
+  timeout: 300
+  retry: 0
+  retry_delay: 60
+  http_notify:
+    url: "http://your-server/api/alert"
+    on: failure
+
+tasks:
+  daily_report:
+    description: "每日数据报表"
+    schedule: "0 3 * * *"
+    timeout: 3600
+    retry: 2
+    retry_delay: 120
+    params:
+      - name: date
+        default: "today"
+    http_notify:
+      url: "http://your-server/report-alert"
+      on: failure
+    steps:
+      - name: prepare
+        command: "python D:/scripts/prepare.py --date={{date}}"
+        timeout: 300
+
+      - name: process
+        command: "D:/tools/process.exe -i D:/data/input.csv"
+        timeout: 600
+        retry: 1
+        retry_delay: 30
+
+      - name: verify
+        command: "powershell D:/scripts/verify.ps1"
+        timeout: 120
+        success_conditions:
+          - exit_code: 0
+          - exit_code: 1
+            output_contains: "OK"
+
+  data_sync:
+    description: "每小时数据同步"
+    schedule: "0 * * * *"
+    retry: 3
+    retry_delay: 300
+    steps:
+      - name: sync
+        command: "python D:/scripts/sync.py"
+        timeout: 1800
+        success_conditions:
+          - exit_code: 0
+            output_contains: "SYNC COMPLETE"
+          - output_contains: "ALREADY UP TO DATE"
