@@ -1,4 +1,4 @@
-"""集成测试 — engine.py 集成 history + running lock + status CLI"""
+"""集成测试 — engine.py 集成 history + running lock + dashboard CLI"""
 import json
 import os
 import subprocess
@@ -87,10 +87,10 @@ class TestRunTaskWritesHistory:
         assert len(records) <= 50
 
 
-class TestStatusCLI:
-    """测试 status 子命令"""
+class TestDashboardCLI:
+    """测试 dashboard 子命令"""
 
-    def test_status_with_history(self, tmp_path):
+    def test_dashboard_with_history(self, tmp_path):
         from history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
@@ -111,7 +111,7 @@ class TestStatusCLI:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "status",
+            [sys.executable, "engine.py", "dashboard",
              "--config", str(config_path),
              "--history", history_file,
              "--state-dir", str(tmp_path / "state")],
@@ -123,11 +123,11 @@ class TestStatusCLI:
         assert "test_task" in result.stdout
         assert "Success" in result.stdout
 
-    def test_status_empty(self, tmp_path):
+    def test_dashboard_empty(self, tmp_path):
         config_path = tmp_path / "tasks.yaml"
         config_path.write_text(yaml.dump({"tasks": {}}, allow_unicode=True), encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, "engine.py", "status",
+            [sys.executable, "engine.py", "dashboard",
              "--config", str(config_path),
              "--history", str(tmp_path / "history.json"),
              "--state-dir", str(tmp_path / "state")],
@@ -137,7 +137,7 @@ class TestStatusCLI:
         )
         assert result.returncode == 0
 
-    def test_status_single_task(self, tmp_path):
+    def test_dashboard_single_task(self, tmp_path):
         from history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
@@ -159,7 +159,7 @@ class TestStatusCLI:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "status",
+            [sys.executable, "engine.py", "dashboard",
              "--task", "test_task",
              "--config", str(config_path),
              "--history", history_file,

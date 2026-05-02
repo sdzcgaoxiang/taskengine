@@ -8,13 +8,13 @@ Windows Server 2016 桌面会话上运行的轻量定时任务引擎，调度多
 
 ```
 engine.py    ← 纯业务逻辑（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
-cli.py       ← CLI 入口（serve / trigger / status 命令调度）
+cli.py       ← CLI 入口（serve / trigger / dashboard / list / version / help）
 history.py   ← 运行历史记录（读写、清理、查询、运行锁）
 dashboard.py ← 监控面板（终端表格渲染、ANSI 颜色）
 tasks.yaml   ← 任务配置文件
 ```
 
-**调用链：** `python engine.py` → `engine.__main__` → `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_status`。
+**调用链：** `python engine.py` → `engine.__main__` → `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_dashboard` / `_cmd_list` / `_cmd_version` / `_cmd_help`。
 
 **依赖方向：** `cli.py` → `engine.py` → `history.py`。`dashboard.py` → `history.py`。`engine.py` 不依赖 `cli.py`、`dashboard.py` 或 `apscheduler`。
 
@@ -127,15 +127,27 @@ python engine.py trigger <task_name> [--params '{"key":"value"}']
 - 开机自启
 - 崩溃自动重启
 
-## 十一、监控面板
+## 十一、CLI 命令
 
-### 命令
+### serve
+
+启动 Cron 调度器，阻塞运行，Ctrl+C 退出。
+
+### trigger
 
 ```bash
-python engine.py status                      # 显示一次快照，退出
-python engine.py status --watch              # 持续刷新（默认 3 秒），Ctrl+C 退出
-python engine.py status --watch 5            # 自定义刷新间隔
-python engine.py status --task daily_report  # 查看单个任务的 Step 级详情
+python engine.py trigger <task_name> [--params '{"key":"value"}']
+```
+
+手动触发指定任务，执行完毕后退出。
+
+### dashboard
+
+```bash
+python engine.py dashboard                      # 显示一次快照，退出
+python engine.py dashboard --watch              # 持续刷新（默认 3 秒），Ctrl+C 退出
+python engine.py dashboard --watch 5            # 自定义刷新间隔
+python engine.py dashboard --task daily_report  # 查看单个任务的 Step 级详情
 ```
 
 ### 数据来源
@@ -146,7 +158,7 @@ python engine.py status --task daily_report  # 查看单个任务的 Step 级详
 
 ### 运行状态检测
 
-通过锁文件 `state/{task_name}.running` 标记任务正在运行。任务开始时创建，结束时删除。`status` 命令检查该文件判断 Running 状态。
+通过锁文件 `state/{task_name}.running` 标记任务正在运行。任务开始时创建，结束时删除。`dashboard` 命令检查该文件判断 Running 状态。
 
 ### 全部任务视图
 
@@ -190,3 +202,31 @@ Windows 10+ / Windows Server 2016+ 原生支持 ANSI 转义序列。
 ### 无新依赖
 
 纯 Python stdlib 实现，不需要额外的第三方库。
+
+### list
+
+```bash
+python engine.py list [--config <path>]
+```
+
+列出所有已配置的任务，显示名称、Cron 表达式、步骤数、超时、重试次数和描述。
+
+无任务时输出 `No tasks configured.`。
+
+### version
+
+```bash
+python engine.py version
+```
+
+输出 `TaskEngine vX.Y.Z`。版本号定义在 `cli.py` 的 `__version__` 常量中。
+
+### help
+
+```bash
+python engine.py help
+```
+
+显示所有命令的用法说明，包括参数和选项。
+
+无参数调用 `python engine.py` 也显示简版用法。

@@ -68,24 +68,57 @@ tasks:
             output_contains: "OK"
 ```
 
-### 启动引擎
+### 命令一览
 
-```bash
-python engine.py serve
+```
+python engine.py help                               # 显示帮助
+python engine.py version                            # 显示版本号
+python engine.py list                               # 列出所有配置的任务
+python engine.py serve                              # 启动调度器
+python engine.py trigger <task> [--params '{...}']  # 手动触发任务
+python engine.py dashboard [options]                # 监控面板
 ```
 
-### 手动触发
+#### `serve` — 启动调度器
+
+按 Cron 表达式定时执行任务。阻塞运行，Ctrl+C 退出。
+
+#### `trigger` — 手动触发
 
 ```bash
 python engine.py trigger daily_report --params '{"date":"2025-01-01"}'
 ```
 
-### 查看状态
+#### `dashboard` — 监控面板
 
 ```bash
-python engine.py status                      # 一次性快照
-python engine.py status --watch              # 持续刷新（默认 3 秒）
-python engine.py status --task daily_report  # 单任务详情
+python engine.py dashboard                      # 一次性快照
+python engine.py dashboard --watch              # 持续刷新（默认 3 秒）
+python engine.py dashboard --task daily_report  # 单任务 Step 级详情
+```
+
+| 选项 | 说明 |
+|------|------|
+| `--task <name>` | 查看单个任务的 Step 级详情 |
+| `--watch [N]` | 持续刷新（默认 3 秒），Ctrl+C 退出 |
+| `--config <path>` | 指定配置文件路径 |
+| `--history <path>` | 指定历史记录文件路径 |
+| `--state-dir <path>` | 指定状态目录路径 |
+
+#### `list` — 列出任务
+
+```bash
+python engine.py list
+```
+
+输出示例：
+```
+Task                Schedule         Steps   Timeout    Retry  Description
+─────────────────── ──────────────── ─────── ────────── ────── ────────────────────
+daily_report        0 3 * * *        3       3600s      2      每日报表
+data_sync           0 * * * *        1       300s       0
+
+2 tasks configured.
 ```
 
 ### 开机自启
@@ -130,7 +163,7 @@ success_conditions:
 ```
 taskengine/
 ├── engine.py          # 核心引擎（条件判断、配置加载、Step/Task 执行、通知）
-├── cli.py             # CLI 入口（serve / trigger / status 命令调度）
+├── cli.py             # CLI 入口（serve / trigger / dashboard / list / version / help）
 ├── history.py         # 运行历史记录（读写、清理、查询、运行锁）
 ├── dashboard.py       # 监控面板（终端表格渲染、ANSI 颜色）
 ├── tasks.yaml         # 任务配置
@@ -143,6 +176,7 @@ taskengine/
 │   ├── test_engine.py       # 核心逻辑测试
 │   ├── test_history.py      # 历史记录测试
 │   ├── test_dashboard.py    # 面板渲染测试
+│   ├── test_cli.py          # CLI 命令测试（help/version/list/dashboard/unknown）
 │   └── test_integration.py  # 集成测试
 ├── logs/              # 运行日志（自动创建）
 ├── state/             # 执行状态（自动创建）
