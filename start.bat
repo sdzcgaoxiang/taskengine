@@ -7,7 +7,7 @@ cd /d %~dp0
 
 :restart
 echo [%date% %time%] Starting TaskEngine...
-python engine.py serve
+python -m taskengine serve
 echo [%date% %time%] TaskEngine exited (crash or stop), restarting in 5 seconds...
 timeout /t 5 /nobreak >nul
 goto restart

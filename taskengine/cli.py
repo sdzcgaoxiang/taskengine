@@ -1,6 +1,5 @@
 """TaskEngine CLI — 命令行入口（serve / trigger / dashboard / help / version / list）"""
 
-__version__ = "1.0.0"
 import os
 import sys
 import time
@@ -8,8 +7,9 @@ from datetime import datetime
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from engine import load_config, Logger, run_task, TaskQueue, parse_trigger_args
-from dashboard import render_summary, render_task_detail
+from taskengine import __version__
+from taskengine.engine import load_config, Logger, run_task, TaskQueue, parse_trigger_args
+from taskengine.dashboard import render_summary, render_task_detail
 
 
 def main():
@@ -28,8 +28,13 @@ def main():
 
     command = sys.argv[1]
 
-    # 确定配置文件路径（与 engine.py 同目录）
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    # 确定基础目录：优先使用当前工作目录的 tasks.yaml
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    pkg_parent = os.path.dirname(pkg_dir)
+    cwd = os.getcwd()
+    # 当前目录有 tasks.yaml → 用当前目录（如 cd examples/）
+    # 否则 → 用包的父目录（项目根）
+    base_dir = cwd if os.path.exists(os.path.join(cwd, "tasks.yaml")) else pkg_parent
     config_path = os.path.join(base_dir, "tasks.yaml")
     log_dir = os.path.join(base_dir, "logs")
     state_dir = os.path.join(base_dir, "state")

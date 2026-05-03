@@ -14,7 +14,7 @@ import urllib.error
 from datetime import datetime
 
 import yaml
-from history import append_history, cleanup_history, mark_running, clear_running
+from taskengine.history import append_history, cleanup_history, mark_running, clear_running
 
 
 # ─── 成功条件判定 ───
@@ -582,5 +582,5 @@ def parse_trigger_args(args):
 
 
 if __name__ == "__main__":
-    from cli import main
+    from taskengine.cli import main
     main()

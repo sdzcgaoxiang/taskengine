@@ -1,0 +1,15 @@
+# TaskEngine 最简示例
+# 用法: cd examples && taskengine trigger hello
+
+tasks:
+  hello:
+    description: "Hello World 示例任务"
+    schedule: "*/5 * * * *"
+    steps:
+      - name: python_hello
+        command: "python hello.py"
+        shell: bash
+
+      - name: echo_hello
+        command: "echo Hello from CMD!"
+        shell: bash

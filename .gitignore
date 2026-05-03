@@ -14,6 +14,14 @@ state/
 history.json
 .hermes/
 
+# User config (keep .example templates)
+conf/tasks.yaml
+
+# Build
+*.egg-info/
+dist/
+build/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -28,3 +36,8 @@ Thumbs.db
 .env
 venv/
 .venv/
+
+# Examples runtime data
+examples/logs/
+examples/state/
+examples/history.json

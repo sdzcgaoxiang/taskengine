@@ -10,7 +10,7 @@
 - 🔄 **智能重试** — Step 级 + Task 级重试，Task 重试从失败的 Step 继续（非从头开始）
 - ⏱ **超时控制** — Step 级 + Task 级独立超时
 - 📢 **HTTP 通知** — 失败时 POST 到可配置 URL，通知本身可失败
-- 📧 **邮件通知** — SMTP 邮件，支持失败/成功/始终触发，SSL 可选
+- 📧 **邮件通知** — SMTP 邮件，支持失败/成功/始终触发，CC 抄送，SSL 可选
 - 📝 **文件日志** — 每次运行一个日志文件
 - 🚀 **手动触发** — 命令行即时执行
 - 🔄 **崩溃重启** — 自启脚本，进程挂掉自动拉起
@@ -21,14 +21,35 @@
 ### 安装
 
 ```bash
+pip install -e .
+```
+
+或从源码安装依赖：
+
+```bash
 pip install -r requirements.txt
 ```
 
 > Python 3.8+（Win2016 兼容），依赖仅 `APScheduler` 和 `PyYAML`。
 
+安装后 `taskengine` 命令全局可用。也可通过 `python -m taskengine` 运行。
+
 ### 配置任务
 
-编辑 `tasks.yaml`：
+复制配置模板并编辑：
+
+```bash
+cp conf/tasks.yaml.example tasks.yaml
+```
+
+最小示例见 `examples/` 目录，可直接运行：
+
+```bash
+cd examples
+taskengine trigger hello
+```
+
+### 配置示例
 
 ```yaml
 defaults:
@@ -81,13 +102,15 @@ tasks:
 ### 命令一览
 
 ```
-python engine.py help                               # 显示帮助
-python engine.py version                            # 显示版本号
-python engine.py list                               # 列出所有配置的任务
-python engine.py serve                              # 启动调度器
-python engine.py trigger <task> [--params '{...}']  # 手动触发任务
-python engine.py dashboard [options]                # 监控面板
+taskengine help                               # 显示帮助
+taskengine version                            # 显示版本号
+taskengine list                               # 列出所有配置的任务
+taskengine serve                              # 启动调度器
+taskengine trigger <task> [--params '{...}']  # 手动触发任务
+taskengine dashboard [options]                # 监控面板
 ```
+
+或使用 `python -m taskengine` 替代 `taskengine`。
 
 #### `serve` — 启动调度器
 
@@ -96,15 +119,15 @@ python engine.py dashboard [options]                # 监控面板
 #### `trigger` — 手动触发
 
 ```bash
-python engine.py trigger daily_report --params '{"date":"2025-01-01"}'
+taskengine trigger daily_report --params '{"date":"2025-01-01"}'
 ```
 
 #### `dashboard` — 监控面板
 
 ```bash
-python engine.py dashboard                      # 一次性快照
-python engine.py dashboard --watch              # 持续刷新（默认 3 秒）
-python engine.py dashboard --task daily_report  # 单任务 Step 级详情
+taskengine dashboard                      # 一次性快照
+taskengine dashboard --watch              # 持续刷新（默认 3 秒）
+taskengine dashboard --task daily_report  # 单任务 Step 级详情
 ```
 
 | 选项 | 说明 |
@@ -118,7 +141,7 @@ python engine.py dashboard --task daily_report  # 单任务 Step 级详情
 #### `list` — 列出任务
 
 ```bash
-python engine.py list
+taskengine list
 ```
 
 输出示例：
@@ -171,28 +194,33 @@ success_conditions:
 ## 项目结构
 
 ```
-taskengine/
-├── engine.py          # 核心引擎（条件判断、配置加载、Step/Task 执行、通知）
-├── cli.py             # CLI 入口（serve / trigger / dashboard / list / version / help）
-├── history.py         # 运行历史记录（读写、清理、查询、运行锁）
-├── dashboard.py       # 监控面板（终端表格渲染、ANSI 颜色）
-├── notify_email.py    # SMTP 邮件通知（构建内容、发送）
-├── tasks.yaml         # 任务配置
-├── start.bat          # Windows 自启脚本
-├── requirements.txt   # Python 依赖
-├── SPEC.md            # 功能规格说明
-├── LICENSE            # MIT License
-├── tests/
-│   ├── conftest.py          # 共享测试 fixtures
-│   ├── test_engine.py       # 核心逻辑测试
-│   ├── test_history.py      # 历史记录测试
-│   ├── test_dashboard.py    # 面板渲染测试
-│   ├── test_cli.py          # CLI 命令测试
-│   ├── test_email_notify.py # 邮件通知测试
-│   └── test_integration.py  # 集成测试
-├── logs/              # 运行日志（自动创建）
-├── state/             # 执行状态（自动创建）
-└── history.json       # 运行历史（自动创建）
+taskengine/                 # Python 包
+├── __init__.py             # 版本号
+├── __main__.py             # python -m taskengine 入口
+├── engine.py               # 核心引擎（条件判断、配置加载、Step/Task 执行、通知）
+├── cli.py                  # CLI 入口（serve / trigger / dashboard / list / version / help）
+├── history.py              # 运行历史记录（读写、清理、查询、运行锁）
+├── dashboard.py            # 监控面板（终端表格渲染、ANSI 颜色）
+└── notify_email.py         # SMTP 邮件通知（构建内容、发送）
+conf/
+└── tasks.yaml.example      # 完整配置模板
+examples/
+├── tasks.yaml              # 最简示例配置
+├── hello.py                # Python 示例步骤脚本
+└── hello.bat               # Windows 批处理示例脚本
+tests/
+├── conftest.py             # 共享测试 fixtures
+├── test_engine.py          # 核心逻辑测试
+├── test_history.py         # 历史记录测试
+├── test_dashboard.py       # 面板渲染测试
+├── test_cli.py             # CLI 命令测试
+├── test_email_notify.py    # 邮件通知测试
+└── test_integration.py     # 集成测试
+pyproject.toml              # 项目元数据 + CLI 入口点
+start.bat                   # Windows 自启脚本
+requirements.txt            # Python 依赖
+SPEC.md                     # 功能规格说明
+LICENSE                     # MIT License
 ```
 
 ### 模块依赖

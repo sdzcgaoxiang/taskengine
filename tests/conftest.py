@@ -1,6 +1,12 @@
 """TaskEngine 测试共享 fixtures"""
+import os
+from pathlib import Path
+
 import pytest
 import yaml
+
+# 项目根目录（tests/ 的上级）
+PROJECT_ROOT = str(Path(__file__).parent.parent)
 
 
 @pytest.fixture

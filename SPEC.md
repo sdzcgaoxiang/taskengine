@@ -7,17 +7,26 @@ Windows Server 2016 桌面会话上运行的轻量定时任务引擎，调度多
 ## 架构
 
 ```
-engine.py      ← 纯业务逻辑（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
-cli.py         ← CLI 入口（serve / trigger / dashboard / list / version / help）
-history.py     ← 运行历史记录（读写、清理、查询、运行锁）
-dashboard.py   ← 监控面板（终端表格渲染、ANSI 颜色）
-notify_email.py← SMTP 邮件通知（构建邮件内容、发送）
-tasks.yaml     ← 任务配置文件
+taskengine/                  # Python 包
+├── __init__.py              # 版本号 (__version__ = "X.Y.Z")
+├── __main__.py              # python -m taskengine 入口
+├── engine.py                # 核心引擎（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
+├── cli.py                   # CLI 入口（serve / trigger / dashboard / list / version / help）
+├── history.py               # 运行历史记录（读写、清理、查询、运行锁）
+├── dashboard.py             # 监控面板（终端表格渲染、ANSI 颜色）
+└── notify_email.py          # SMTP 邮件通知（构建邮件内容、发送）
 ```
 
-**调用链：** `python engine.py` → `engine.__main__` → `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_dashboard` / `_cmd_list` / `_cmd_version` / `_cmd_help`。
+**调用方式：**
+- `taskengine serve` — 通过 `pyproject.toml` 定义的 CLI 入口点
+- `python -m taskengine serve` — 通过 `__main__.py`
+- `start.bat` — Windows 自启脚本，使用 `python -m taskengine serve`
+
+**调用链：** `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_dashboard` / `_cmd_list` / `_cmd_version` / `_cmd_help`。
 
 **依赖方向：** `cli.py` → `engine.py` → `history.py`。`dashboard.py` → `history.py`。`engine.py` 不依赖 `cli.py`、`dashboard.py` 或 `apscheduler`。
+
+**配置查找：** CLI 启动时先检查当前工作目录 (cwd) 是否有 `tasks.yaml`，有则使用 cwd 作为 base_dir；否则使用包的父目录。这使得 `cd examples && taskengine trigger hello` 可以工作。
 
 ## 一、任务定义（YAML）
 
@@ -72,7 +81,7 @@ success_conditions:
 
 ## 六、执行方式
 
-所有命令通过 **PowerShell** 执行。
+所有命令通过 **PowerShell** 执行。在 Linux/macOS 示例中可使用 `shell: bash` 指定。
 
 ## 七、HTTP 通知
 
@@ -159,13 +168,14 @@ logs/daily_report_20250101_030000.log
 ## 九、手动触发
 
 ```
-python engine.py trigger <task_name> [--params '{"key":"value"}']
+taskengine trigger <task_name> [--params '{"key":"value"}']
 ```
 
 ## 十、自启动 + 崩溃重启
 
-- 开机自启
-- 崩溃自动重启
+- `start.bat` 使用 `python -m taskengine serve` 启动
+- 开机自启：放到 Windows 启动目录（`shell:startup`）
+- 崩溃自动重启：5 秒后自动拉起
 
 ## 十一、CLI 命令
 
@@ -176,7 +186,7 @@ python engine.py trigger <task_name> [--params '{"key":"value"}']
 ### trigger
 
 ```bash
-python engine.py trigger <task_name> [--params '{"key":"value"}']
+taskengine trigger <task_name> [--params '{"key":"value"}']
 ```
 
 手动触发指定任务，执行完毕后退出。
@@ -184,15 +194,15 @@ python engine.py trigger <task_name> [--params '{"key":"value"}']
 ### dashboard
 
 ```bash
-python engine.py dashboard                      # 显示一次快照，退出
-python engine.py dashboard --watch              # 持续刷新（默认 3 秒），Ctrl+C 退出
-python engine.py dashboard --watch 5            # 自定义刷新间隔
-python engine.py dashboard --task daily_report  # 查看单个任务的 Step 级详情
+taskengine dashboard                      # 显示一次快照，退出
+taskengine dashboard --watch              # 持续刷新（默认 3 秒），Ctrl+C 退出
+taskengine dashboard --watch 5            # 自定义刷新间隔
+taskengine dashboard --task daily_report  # 查看单个任务的 Step 级详情
 ```
 
 ### 数据来源
 
-运行历史记录存储在 `history.json`（与 `engine.py` 同目录），每次任务执行完成后自动追加。
+运行历史记录存储在 `history.json`（base_dir 下），每次任务执行完成后自动追加。
 
 **保留策略：** 每个 Task 默认保留最近 50 条记录，超出自动清理最旧的。
 
@@ -246,7 +256,7 @@ Windows 10+ / Windows Server 2016+ 原生支持 ANSI 转义序列。
 ### list
 
 ```bash
-python engine.py list [--config <path>]
+taskengine list [--config <path>]
 ```
 
 列出所有已配置的任务，显示名称、Cron 表达式、步骤数、超时、重试次数和描述。
@@ -256,17 +266,17 @@ python engine.py list [--config <path>]
 ### version
 
 ```bash
-python engine.py version
+taskengine version
 ```
 
-输出 `TaskEngine vX.Y.Z`。版本号定义在 `cli.py` 的 `__version__` 常量中。
+输出 `TaskEngine vX.Y.Z`。版本号定义在 `taskengine/__init__.py` 的 `__version__` 中。
 
 ### help
 
 ```bash
-python engine.py help
+taskengine help
 ```
 
 显示所有命令的用法说明，包括参数和选项。
 
-无参数调用 `python engine.py` 也显示简版用法。
+无参数调用 `taskengine` 也显示简版用法。

@@ -19,7 +19,7 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 
-from engine import should_notify
+from taskengine.engine import should_notify
 
 logger = logging.getLogger(__name__)
 

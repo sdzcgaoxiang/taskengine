@@ -1,0 +1,27 @@
+[project]
+name = "taskengine"
+version = "1.1.0"
+description = "轻量定时任务引擎 — 多步脚本调度、监控面板、邮件通知"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [
+    {name = "happyshaun"},
+]
+dependencies = [
+    "APScheduler>=3.10.0,<4.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+taskengine = "taskengine.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["taskengine*"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

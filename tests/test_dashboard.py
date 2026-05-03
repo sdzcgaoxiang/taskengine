@@ -8,27 +8,27 @@ class TestFormatDuration:
     """测试时间格式化"""
 
     def test_seconds_only(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(45.0) == "45s"
 
     def test_minutes_and_seconds(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(332.1) == "5m 32s"
 
     def test_hours(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(3661.5) == "1h 1m"
 
     def test_zero(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(0) == "0s"
 
     def test_exact_minute(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(60.0) == "1m 0s"
 
     def test_large_hours(self):
-        from dashboard import format_duration
+        from taskengine.dashboard import format_duration
         assert format_duration(7384.0) == "2h 3m"
 
 
@@ -36,12 +36,12 @@ class TestColorize:
     """测试 ANSI 颜色"""
 
     def test_with_color(self):
-        from dashboard import colorize, GREEN, RESET
+        from taskengine.dashboard import colorize, GREEN, RESET
         result = colorize("Success", GREEN)
         assert result == f"{GREEN}Success{RESET}"
 
     def test_no_color(self):
-        from dashboard import colorize
+        from taskengine.dashboard import colorize
         assert colorize("test", None) == "test"
 
 
@@ -49,8 +49,8 @@ class TestRenderSummary:
     """测试全部任务表格渲染"""
 
     def test_basic_table(self, tmp_path):
-        from dashboard import render_summary
-        from history import append_history
+        from taskengine.dashboard import render_summary
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "daily_report", "status": "success",
@@ -75,8 +75,8 @@ class TestRenderSummary:
         assert "2/2" in output
 
     def test_shows_failure_status(self, tmp_path):
-        from dashboard import render_summary
-        from history import append_history
+        from taskengine.dashboard import render_summary
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "data_sync", "status": "failure",
@@ -96,8 +96,8 @@ class TestRenderSummary:
         assert "0/1" in output
 
     def test_shows_running_status(self, tmp_path):
-        from dashboard import render_summary
-        from history import mark_running
+        from taskengine.dashboard import render_summary
+        from taskengine.history import mark_running
         state_dir = str(tmp_path / "state")
         os.makedirs(state_dir, exist_ok=True)
         mark_running(state_dir, "data_sync", pid=12345)
@@ -110,7 +110,7 @@ class TestRenderSummary:
         assert "Running" in output
 
     def test_empty_config(self, tmp_path):
-        from dashboard import render_summary
+        from taskengine.dashboard import render_summary
         output = render_summary({"tasks": {}}, str(tmp_path / "history.json"), state_dir=str(tmp_path / "state"))
         assert "0 tasks" in output
 
@@ -119,8 +119,8 @@ class TestRenderTaskDetail:
     """测试单任务详情渲染"""
 
     def test_basic_detail(self, tmp_path):
-        from dashboard import render_task_detail
-        from history import append_history
+        from taskengine.dashboard import render_task_detail
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "daily_report", "run_id": "r1", "status": "success",
@@ -144,8 +144,8 @@ class TestRenderTaskDetail:
         assert "Success" in output
 
     def test_detail_with_failure(self, tmp_path):
-        from dashboard import render_task_detail
-        from history import append_history
+        from taskengine.dashboard import render_task_detail
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "daily_report", "run_id": "r1", "status": "failure",
@@ -165,7 +165,7 @@ class TestRenderTaskDetail:
         assert "timeout" in output
 
     def test_detail_no_history(self, tmp_path):
-        from dashboard import render_task_detail
+        from taskengine.dashboard import render_task_detail
         task_config = {"schedule": "0 3 * * *", "steps": [{"name": "step1"}]}
         output = render_task_detail(task_config, str(tmp_path / "nope.json"), task_name="t1", limit=5)
         assert "t1" in output

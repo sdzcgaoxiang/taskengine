@@ -8,7 +8,7 @@ import pytest
 
 def test_build_email_message_basic():
     """基本邮件内容构建：包含任务名、状态、时间、耗时"""
-    from notify_email import build_email_message
+    from taskengine.notify_email import build_email_message
 
     task_result = {
         "success": False,
@@ -35,7 +35,7 @@ def test_build_email_message_basic():
 
 def test_build_email_message_success():
     """成功任务邮件：所有步骤都成功"""
-    from notify_email import build_email_message
+    from taskengine.notify_email import build_email_message
 
     task_result = {
         "success": True,
@@ -57,7 +57,7 @@ def test_build_email_message_success():
 
 def test_build_email_message_truncates_long_output():
     """失败步骤输出过长时截断到 500 字符"""
-    from notify_email import build_email_message
+    from taskengine.notify_email import build_email_message
 
     long_output = "x" * 2000
     task_result = {
@@ -82,7 +82,7 @@ def test_build_email_message_truncates_long_output():
 
 def test_send_email_smtp_without_ssl():
     """无 SSL 连接 SMTP（默认行为）"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com",
@@ -104,7 +104,7 @@ def test_send_email_smtp_without_ssl():
 
 def test_send_email_smtp_with_ssl():
     """SSL 连接 SMTP"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com",
@@ -126,7 +126,7 @@ def test_send_email_smtp_with_ssl():
 
 def test_send_email_with_auth():
     """带用户名密码认证"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com",
@@ -149,7 +149,7 @@ def test_send_email_with_auth():
 
 def test_send_email_no_auth():
     """无认证时不调用 login"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com",
@@ -170,7 +170,7 @@ def test_send_email_no_auth():
 
 def test_send_email_multiple_recipients():
     """多个收件人"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com",
@@ -195,7 +195,7 @@ def test_send_email_multiple_recipients():
 
 def test_send_email_smtp_error_returns_false():
     """SMTP 连接失败时返回 False，不抛异常"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "bad.smtp.com",
@@ -213,7 +213,7 @@ def test_send_email_smtp_error_returns_false():
 
 def test_notify_email_skips_when_no_config():
     """无 email_notify_config 时不做任何事"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     # 应该直接返回，不报错
     notify_email(None, "task", {"success": True}, "2026-01-01", "2026-01-01", 1.0)
@@ -221,17 +221,17 @@ def test_notify_email_skips_when_no_config():
 
 def test_notify_email_skips_when_no_recipients():
     """没有 to 字段时不发邮件"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {"host": "smtp.example.com", "port": 25, "from": "bot@example.com"}
-    with patch("notify_email.send_email") as mock_send:
+    with patch("taskengine.notify_email.send_email") as mock_send:
         notify_email(config, "task", {"success": True}, "2026-01-01", "2026-01-01", 1.0)
         mock_send.assert_not_called()
 
 
 def test_notify_email_calls_send_on_failure():
     """on=failure 且任务失败时发送邮件"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {
         "host": "smtp.example.com",
@@ -246,7 +246,7 @@ def test_notify_email_calls_send_on_failure():
             {"name": "step1", "success": False, "exit_code": 1, "output": "err"},
         ],
     }
-    with patch("notify_email.send_email", return_value=True) as mock_send:
+    with patch("taskengine.notify_email.send_email", return_value=True) as mock_send:
         notify_email(config, "my_task", task_result, "2026-01-01T00:00:00",
                      "2026-01-01T00:00:05", 5.0)
         mock_send.assert_called_once()
@@ -258,14 +258,14 @@ def test_notify_email_calls_send_on_failure():
 
 def test_notify_email_skips_on_failure_when_task_succeeded():
     """on=failure 但任务成功时不发送"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
         "from": "bot@example.com", "to": ["admin@example.com"],
         "on": "failure",
     }
-    with patch("notify_email.send_email") as mock_send:
+    with patch("taskengine.notify_email.send_email") as mock_send:
         notify_email(config, "task", {"success": True, "steps": []},
                      "2026-01-01", "2026-01-01", 1.0)
         mock_send.assert_not_called()
@@ -273,14 +273,14 @@ def test_notify_email_skips_on_failure_when_task_succeeded():
 
 def test_notify_email_sends_on_success():
     """on=success 且任务成功时发送"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
         "from": "bot@example.com", "to": ["admin@example.com"],
         "on": "success",
     }
-    with patch("notify_email.send_email", return_value=True) as mock_send:
+    with patch("taskengine.notify_email.send_email", return_value=True) as mock_send:
         notify_email(config, "task", {"success": True, "steps": []},
                      "2026-01-01", "2026-01-01", 1.0)
         mock_send.assert_called_once()
@@ -288,14 +288,14 @@ def test_notify_email_sends_on_success():
 
 def test_notify_email_sends_on_always():
     """on=always 时不论成败都发送"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
         "from": "bot@example.com", "to": ["admin@example.com"],
         "on": "always",
     }
-    with patch("notify_email.send_email", return_value=True) as mock_send:
+    with patch("taskengine.notify_email.send_email", return_value=True) as mock_send:
         # 成功
         notify_email(config, "task", {"success": True, "steps": []},
                      "2026-01-01", "2026-01-01", 1.0)
@@ -308,14 +308,14 @@ def test_notify_email_sends_on_always():
 
 def test_notify_email_default_on_is_failure():
     """不指定 on 字段时默认为 failure"""
-    from notify_email import notify_email
+    from taskengine.notify_email import notify_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
         "from": "bot@example.com", "to": ["admin@example.com"],
     }
     # 成功时不发送
-    with patch("notify_email.send_email") as mock_send:
+    with patch("taskengine.notify_email.send_email") as mock_send:
         notify_email(config, "task", {"success": True, "steps": []},
                      "2026-01-01", "2026-01-01", 1.0)
         mock_send.assert_not_called()
@@ -325,7 +325,7 @@ def test_notify_email_default_on_is_failure():
 
 def test_send_email_with_cc():
     """cc 字段设置邮件头 Cc，收件人包含 to + cc"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
@@ -352,7 +352,7 @@ def test_send_email_with_cc():
 
 def test_send_email_cc_empty_list():
     """cc 为空列表时不设置 Cc 头"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
@@ -374,7 +374,7 @@ def test_send_email_cc_empty_list():
 
 def test_send_email_no_cc_field():
     """不设置 cc 字段时不设置 Cc 头（向后兼容）"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com", "port": 25,
@@ -395,7 +395,7 @@ def test_send_email_no_cc_field():
 
 def test_send_email_to_and_cc_multiple():
     """主送多人 + 抄送多人，邮件头都正确"""
-    from notify_email import send_email
+    from taskengine.notify_email import send_email
 
     config = {
         "host": "smtp.example.com", "port": 25,

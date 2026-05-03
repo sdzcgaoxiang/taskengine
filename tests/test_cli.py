@@ -5,15 +5,17 @@ import sys
 import pytest
 import yaml
 
+from conftest import PROJECT_ROOT
+
 
 class TestVersionCommand:
     """测试 version 命令"""
 
     def test_version_output(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "version"],
+            [sys.executable, "-m", "taskengine", "version"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -22,9 +24,9 @@ class TestVersionCommand:
 
     def test_version_has_semver_format(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "version"],
+            [sys.executable, "-m", "taskengine", "version"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         # 应该匹配 vX.Y.Z 格式
@@ -37,9 +39,9 @@ class TestHelpCommand:
 
     def test_help_output(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "help"],
+            [sys.executable, "-m", "taskengine", "help"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -51,9 +53,9 @@ class TestHelpCommand:
 
     def test_help_shows_usage(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "help"],
+            [sys.executable, "-m", "taskengine", "help"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert "Usage" in result.stdout
@@ -61,9 +63,9 @@ class TestHelpCommand:
     def test_no_args_shows_help_like_output(self):
         """无参数也应该显示用法"""
         result = subprocess.run(
-            [sys.executable, "engine.py"],
+            [sys.executable, "-m", "taskengine"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 1
@@ -95,10 +97,10 @@ class TestListCommand:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "list",
+            [sys.executable, "-m", "taskengine", "list",
              "--config", str(config_path)],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -112,10 +114,10 @@ class TestListCommand:
         config_path.write_text(yaml.dump({"tasks": {}}, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "list",
+            [sys.executable, "-m", "taskengine", "list",
              "--config", str(config_path)],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -137,10 +139,10 @@ class TestListCommand:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "list",
+            [sys.executable, "-m", "taskengine", "list",
              "--config", str(config_path)],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -152,9 +154,9 @@ class TestUnknownCommand:
 
     def test_unknown_command_exits_with_error(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "foobar"],
+            [sys.executable, "-m", "taskengine", "foobar"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 1
@@ -162,9 +164,9 @@ class TestUnknownCommand:
 
     def test_unknown_command_suggests_help(self):
         result = subprocess.run(
-            [sys.executable, "engine.py", "foobar"],
+            [sys.executable, "-m", "taskengine", "foobar"],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert "help" in result.stdout.lower()

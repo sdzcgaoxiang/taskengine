@@ -1,4 +1,4 @@
-"""集成测试 — engine.py 集成 history + running lock + dashboard CLI"""
+"""集成测试 — taskengine 集成 history + running lock + dashboard CLI"""
 import json
 import os
 import subprocess
@@ -8,13 +8,15 @@ import time
 import pytest
 import yaml
 
+from conftest import PROJECT_ROOT
+
 
 class TestRunTaskWritesHistory:
     """测试 run_task 执行后写入 history.json"""
 
     def test_success_writes_history(self, tmp_path, make_task_config):
-        from engine import run_task, load_config, Logger
-        from history import load_history
+        from taskengine.engine import run_task, load_config, Logger
+        from taskengine.history import load_history
         config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash"},
         ])
@@ -32,8 +34,8 @@ class TestRunTaskWritesHistory:
         assert records[0]["step_results"][0]["name"] == "step1"
 
     def test_failure_writes_history(self, tmp_path, make_task_config):
-        from engine import run_task, load_config, Logger
-        from history import load_history
+        from taskengine.engine import run_task, load_config, Logger
+        from taskengine.history import load_history
         config_path = make_task_config([
             {"name": "step1", "command": "exit 1", "shell": "bash"},
         ])
@@ -52,8 +54,8 @@ class TestRunTaskWritesHistory:
 
     def test_running_lock_lifecycle(self, tmp_path, make_task_config):
         """测试运行中锁的标记和清除"""
-        from engine import run_task, load_config, Logger
-        from history import is_running
+        from taskengine.engine import run_task, load_config, Logger
+        from taskengine.history import is_running
         config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash", "timeout": 10},
         ])
@@ -69,8 +71,8 @@ class TestRunTaskWritesHistory:
 
     def test_history_cleanup_after_write(self, tmp_path, make_task_config):
         """测试写入后自动清理"""
-        from engine import run_task, load_config, Logger
-        from history import load_history
+        from taskengine.engine import run_task, load_config, Logger
+        from taskengine.history import load_history
         config_path = make_task_config([
             {"name": "step1", "command": "echo ok", "shell": "bash"},
         ])
@@ -91,7 +93,7 @@ class TestDashboardCLI:
     """测试 dashboard 子命令"""
 
     def test_dashboard_with_history(self, tmp_path):
-        from history import append_history
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "test_task", "status": "success",
@@ -111,12 +113,12 @@ class TestDashboardCLI:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "dashboard",
+            [sys.executable, "-m", "taskengine", "dashboard",
              "--config", str(config_path),
              "--history", history_file,
              "--state-dir", str(tmp_path / "state")],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
@@ -127,18 +129,18 @@ class TestDashboardCLI:
         config_path = tmp_path / "tasks.yaml"
         config_path.write_text(yaml.dump({"tasks": {}}, allow_unicode=True), encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, "engine.py", "dashboard",
+            [sys.executable, "-m", "taskengine", "dashboard",
              "--config", str(config_path),
              "--history", str(tmp_path / "history.json"),
              "--state-dir", str(tmp_path / "state")],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0
 
     def test_dashboard_single_task(self, tmp_path):
-        from history import append_history
+        from taskengine.history import append_history
         history_file = str(tmp_path / "history.json")
         append_history(history_file, {
             "task": "test_task", "status": "success",
@@ -159,13 +161,13 @@ class TestDashboardCLI:
         }, allow_unicode=True), encoding="utf-8")
 
         result = subprocess.run(
-            [sys.executable, "engine.py", "dashboard",
+            [sys.executable, "-m", "taskengine", "dashboard",
              "--task", "test_task",
              "--config", str(config_path),
              "--history", history_file,
              "--state-dir", str(tmp_path / "state")],
             capture_output=True, text=True,
-            cwd="/home/admin/taskengine",
+            cwd=PROJECT_ROOT,
             timeout=10,
         )
         assert result.returncode == 0

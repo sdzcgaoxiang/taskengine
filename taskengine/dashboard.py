@@ -1,5 +1,5 @@
 """TaskEngine 监控面板 — 终端表格渲染、颜色、格式化"""
-from history import get_latest_per_task, get_task_history, is_running
+from taskengine.history import get_latest_per_task, get_task_history, is_running
 
 # ─── ANSI 颜色 ───
 
