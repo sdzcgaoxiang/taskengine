@@ -1,27 +1,63 @@
 # TaskEngine 任务配置
 # 详细说明见 SPEC.md
+# 本文件展示了所有可用功能的配置示例
 
+# ─── 全局默认值 ───
 defaults:
-  timeout: 300
-  retry: 0
-  retry_delay: 60
+  timeout: 300          # 任务级默认超时（秒）
+  retry: 0              # 任务级默认重试次数
+  retry_delay: 60       # 重试间隔（秒）
+
+  # HTTP 通知（任务级可覆盖）
   http_notify:
     url: "http://your-server/api/alert"
-    on: failure
+    on: failure          # failure / always
+
+  # 邮件通知（任务级可覆盖）
+  email_notify:
+    host: smtp.example.com
+    port: 25
+    ssl: false           # 默认 false，true 则用 SMTP_SSL（端口通常 465）
+    username: user       # 可选，不填则不认证
+    password: pass       # 可选
+    from: bot@example.com
+    to:
+      - admin@example.com
+      - ops@example.com
+    on: failure           # failure / success / always
+
+# ─── 任务定义 ───
 
 tasks:
+
+  # ── 示例 1：覆盖全局默认值 + 多种成功条件 ──
   daily_report:
     description: "每日数据报表"
     schedule: "0 3 * * *"
-    timeout: 3600
-    retry: 2
-    retry_delay: 120
+    timeout: 3600         # 覆盖 defaults.timeout
+    retry: 2              # 覆盖 defaults.retry
+    retry_delay: 120      # 覆盖 defaults.retry_delay
+
+    # 参数列表，命令中用 {{参数名}} 引用
     params:
       - name: date
         default: "today"
+
+    # 覆盖全局 http_notify
     http_notify:
       url: "http://your-server/report-alert"
       on: failure
+
+    # 覆盖全局 email_notify（比如关键任务每次都发邮件）
+    email_notify:
+      host: smtp.example.com
+      port: 25
+      ssl: false
+      from: bot@example.com
+      to:
+        - manager@example.com
+      on: always           # 不论成败都发邮件
+
     steps:
       - name: prepare
         command: "python D:/scripts/prepare.py --date={{date}}"
@@ -30,17 +66,19 @@ tasks:
       - name: process
         command: "D:/tools/process.exe -i D:/data/input.csv"
         timeout: 600
-        retry: 1
+        retry: 1            # 步骤级重试（独立于任务级重试）
         retry_delay: 30
 
       - name: verify
         command: "powershell D:/scripts/verify.ps1"
         timeout: 120
+        # 多规则 OR，规则内 AND
         success_conditions:
-          - exit_code: 0
-          - exit_code: 1
+          - exit_code: 0                              # 规则1: 返回0
+          - exit_code: 1                              # 规则2: 返回1 且 输出含OK
             output_contains: "OK"
 
+  # ── 示例 2：output_not_contains + 无 exit_code 条件 ──
   data_sync:
     description: "每小时数据同步"
     schedule: "0 * * * *"
@@ -50,7 +88,28 @@ tasks:
       - name: sync
         command: "python D:/scripts/sync.py"
         timeout: 1800
+        # 规则1: 返回0且含"SYNC COMPLETE"
+        # 规则2: 不检查返回码，只看输出含"ALREADY UP TO DATE"
         success_conditions:
           - exit_code: 0
             output_contains: "SYNC COMPLETE"
           - output_contains: "ALREADY UP TO DATE"
+
+      - name: validate
+        command: "python D:/scripts/validate_sync.py"
+        timeout: 300
+        # 只要输出不含 ERROR 就算成功（不检查返回码）
+        success_conditions:
+          - output_not_contains: "ERROR"
+            output_contains: "VALIDATION DONE"
+
+  # ── 示例 3：step 级 workdir + 极简配置（全部继承默认值）──
+  monthly_cleanup:
+    description: "月度清理"
+    schedule: "0 2 1 * *"   # 每月1号凌晨2点
+    steps:
+      - name: cleanup
+        command: "python cleanup.py"
+        workdir: "D:/scripts/cleanup"   # 指定工作目录
+        timeout: 7200
+        # success_conditions 省略 → 默认 [{exit_code: 0}]
