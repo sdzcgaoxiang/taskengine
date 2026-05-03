@@ -10,6 +10,7 @@
 - 🔄 **智能重试** — Step 级 + Task 级重试，Task 重试从失败的 Step 继续（非从头开始）
 - ⏱ **超时控制** — Step 级 + Task 级独立超时
 - 📢 **HTTP 通知** — 失败时 POST 到可配置 URL，通知本身可失败
+- 📧 **邮件通知** — SMTP 邮件，支持失败/成功/始终触发，SSL 可选
 - 📝 **文件日志** — 每次运行一个日志文件
 - 🚀 **手动触发** — 命令行即时执行
 - 🔄 **崩溃重启** — 自启脚本，进程挂掉自动拉起
@@ -37,7 +38,14 @@ defaults:
   http_notify:
     url: "http://your-server/api/alert"
     on: failure
-
+  email_notify:
+    host: smtp.example.com
+    port: 25
+    ssl: false
+    from: bot@example.com
+    to:
+      - admin@example.com
+    on: failure
 tasks:
   daily_report:
     description: "每日数据报表"
@@ -166,6 +174,7 @@ taskengine/
 ├── cli.py             # CLI 入口（serve / trigger / dashboard / list / version / help）
 ├── history.py         # 运行历史记录（读写、清理、查询、运行锁）
 ├── dashboard.py       # 监控面板（终端表格渲染、ANSI 颜色）
+├── notify_email.py    # SMTP 邮件通知（构建内容、发送）
 ├── tasks.yaml         # 任务配置
 ├── start.bat          # Windows 自启脚本
 ├── requirements.txt   # Python 依赖
@@ -176,7 +185,8 @@ taskengine/
 │   ├── test_engine.py       # 核心逻辑测试
 │   ├── test_history.py      # 历史记录测试
 │   ├── test_dashboard.py    # 面板渲染测试
-│   ├── test_cli.py          # CLI 命令测试（help/version/list/dashboard/unknown）
+│   ├── test_cli.py          # CLI 命令测试
+│   ├── test_email_notify.py # 邮件通知测试
 │   └── test_integration.py  # 集成测试
 ├── logs/              # 运行日志（自动创建）
 ├── state/             # 执行状态（自动创建）

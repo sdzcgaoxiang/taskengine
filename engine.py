@@ -98,6 +98,10 @@ def load_config(config_path):
         if "http_notify" not in task and "http_notify" in defaults:
             task["http_notify"] = defaults["http_notify"]
 
+        # email_notify 合并
+        if "email_notify" not in task and "email_notify" in defaults:
+            task["email_notify"] = defaults["email_notify"]
+
     return {"tasks": tasks, "defaults": defaults}
 
 
@@ -191,6 +195,8 @@ def should_notify(on_config, task_success):
         return True
     if on_config == "failure":
         return not task_success
+    if on_config == "success":
+        return task_success
     return False
 
 
@@ -333,7 +339,7 @@ def _describe_matched_rule(conditions, exit_code, output):
 # ─── Task 执行 ───
 
 def run_task(task, task_name, params, logger, state_dir=None, http_notify_config=None,
-             history_file=None, history_keep=50):
+             email_notify_config=None, history_file=None, history_keep=50):
     """执行整个 Task，从失败 Step 重跑"""
     steps = task["steps"]
     task_timeout = task.get("timeout", 3600)
@@ -414,6 +420,7 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
             result = {"success": True, "steps": step_results, "duration": duration}
             _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep)
             _do_notify(task_name, result, http_notify_config)
+            _do_notify_email(task_name, result, email_notify_config, started_at, duration)
             if state_dir:
                 clear_running(state_dir, task_name)
             return result
@@ -431,6 +438,7 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
     result = {"success": False, "steps": step_results, "duration": duration}
     _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep)
     _do_notify(task_name, result, http_notify_config)
+    _do_notify_email(task_name, result, email_notify_config, started_at, duration)
     if state_dir:
         clear_running(state_dir, task_name)
     return result
@@ -516,6 +524,15 @@ def _do_notify(task_name, result, http_notify_config):
         "finished_at": datetime.now().isoformat(),
     }
     notify(url, payload)
+
+
+def _do_notify_email(task_name, result, email_notify_config, started_at, duration):
+    """发送邮件通知（如果配置了且条件满足）"""
+    if not email_notify_config:
+        return
+    from notify_email import notify_email
+    finished_at = datetime.now().isoformat()
+    notify_email(email_notify_config, task_name, result, started_at, finished_at, duration)
 
 
 # ─── 排队执行 ───

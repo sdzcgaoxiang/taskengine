@@ -7,11 +7,12 @@ Windows Server 2016 桌面会话上运行的轻量定时任务引擎，调度多
 ## 架构
 
 ```
-engine.py    ← 纯业务逻辑（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
-cli.py       ← CLI 入口（serve / trigger / dashboard / list / version / help）
-history.py   ← 运行历史记录（读写、清理、查询、运行锁）
-dashboard.py ← 监控面板（终端表格渲染、ANSI 颜色）
-tasks.yaml   ← 任务配置文件
+engine.py      ← 纯业务逻辑（条件判断、配置加载、Step/Task 执行、状态持久化、通知）
+cli.py         ← CLI 入口（serve / trigger / dashboard / list / version / help）
+history.py     ← 运行历史记录（读写、清理、查询、运行锁）
+dashboard.py   ← 监控面板（终端表格渲染、ANSI 颜色）
+notify_email.py← SMTP 邮件通知（构建邮件内容、发送）
+tasks.yaml     ← 任务配置文件
 ```
 
 **调用链：** `python engine.py` → `engine.__main__` → `cli.main()` → 根据 command 分发到 `_cmd_serve` / `_cmd_trigger` / `_cmd_dashboard` / `_cmd_list` / `_cmd_version` / `_cmd_help`。
@@ -29,6 +30,7 @@ tasks.yaml   ← 任务配置文件
 | retry_delay | 否 | 60 | 重试间隔（秒） |
 | params | 否 | [] | 参数列表，支持默认值 |
 | http_notify | 否 | 全局配置 | URL + 触发条件 |
+| email_notify | 否 | 全局配置 | SMTP 邮件通知配置 |
 | steps | 是 | - | 有序步骤列表 |
 
 ## 二、Step 定义
@@ -94,6 +96,41 @@ Payload：
   "finished_at": "2025-01-01T03:05:32"
 }
 ```
+
+## 七-B、邮件通知（SMTP）
+
+通过 `email_notify` 配置 SMTP 邮件通知，任务级可覆盖全局默认值。
+
+```yaml
+defaults:
+  email_notify:
+    host: smtp.example.com
+    port: 25
+    ssl: false            # 默认 false
+    username: user        # 可选，无则不认证
+    password: pass        # 可选
+    from: bot@example.com
+    to:
+      - admin@example.com
+    on: failure           # failure / success / always
+```
+
+| 项目 | 必填 | 默认值 | 说明 |
+|------|------|--------|------|
+| host | 是 | - | SMTP 服务器地址 |
+| port | 否 | 25 (SSL 时 465) | SMTP 端口 |
+| ssl | 否 | false | 使用 SSL（SMTP_SSL）连接 |
+| username | 否 | 无 | 认证用户名 |
+| password | 否 | 无 | 认证密码 |
+| from | 是 | - | 发件人地址 |
+| to | 是 | - | 收件人列表 |
+| on | 否 | failure | `failure` 仅失败 / `success` 仅成功 / `always` 每次 |
+
+**邮件内容：** 任务名、状态（成功/失败）、开始/结束时间、耗时、各步骤执行情况（成功标记 + 耗时，失败标记 + 退出码 + 输出片段）。
+
+**容忍：** 邮件发送失败不影响任务状态，仅记录日志。
+
+**无新依赖：** 使用 Python stdlib 的 `smtplib` + `email.mime.text`。
 
 ## 八、日志
 

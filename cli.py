@@ -70,7 +70,9 @@ def _cmd_trigger(args, config_path, log_dir, state_dir, history_file):
     task = config["tasks"][task_name]
     logger = Logger(log_dir)
     result = run_task(task, task_name, parsed["params"], logger,
-                      state_dir=state_dir, history_file=history_file)
+                      state_dir=state_dir, history_file=history_file,
+                      http_notify_config=task.get("http_notify"),
+                      email_notify_config=task.get("email_notify"))
     print(f"Task {task_name}: {'SUCCESS' if result['success'] else 'FAILURE'}")
     sys.exit(0 if result["success"] else 1)
 
@@ -85,6 +87,7 @@ def _cmd_serve(config_path, log_dir, state_dir, history_file):
         task = config["tasks"][task_name]
         run_task(task, task_name, params, logger, state_dir=state_dir,
                  http_notify_config=task.get("http_notify"),
+                 email_notify_config=task.get("email_notify"),
                  history_file=history_file)
 
     queue = TaskQueue(runner=queued_runner)
