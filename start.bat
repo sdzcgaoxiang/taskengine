@@ -1,7 +1,7 @@
 @echo off
-REM TaskEngine 启动脚本 - 开机自启 + 崩溃重启
-REM 把此文件放到 Windows 启动目录: shell:startup
-REM 或创建 Task Scheduler 任务: 登录时运行此脚本
+REM TaskEngine startup script - auto-start on boot + crash restart
+REM Place this file in the Windows startup directory: shell:startup
+REM Or create a Task Scheduler task to run this script on login
 
 cd /d %~dp0
 

@@ -1,4 +1,4 @@
 @echo off
-REM Hello World — TaskEngine 示例步骤脚本 (Windows)
-echo Hello from BAT!
+REM Hello World - TaskEngine example step script (Windows)
+echo Hello from TaskEngine!
 echo Current time: %date% %time%

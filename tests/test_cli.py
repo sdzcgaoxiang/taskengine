@@ -1,4 +1,4 @@
-"""CLI 命令测试 — help / version / list / dashboard / unknown"""
+"""CLI command tests — help / version / list / dashboard / unknown"""
 import subprocess
 import sys
 
@@ -9,7 +9,7 @@ from conftest import PROJECT_ROOT
 
 
 class TestVersionCommand:
-    """测试 version 命令"""
+    """Test version command"""
 
     def test_version_output(self):
         result = subprocess.run(
@@ -29,13 +29,13 @@ class TestVersionCommand:
             cwd=PROJECT_ROOT,
             timeout=10,
         )
-        # 应该匹配 vX.Y.Z 格式
+        # Should match vX.Y.Z format
         import re
         assert re.search(r"v\d+\.\d+\.\d+", result.stdout)
 
 
 class TestHelpCommand:
-    """测试 help 命令"""
+    """Test help command"""
 
     def test_help_output(self):
         result = subprocess.run(
@@ -61,7 +61,7 @@ class TestHelpCommand:
         assert "Usage" in result.stdout
 
     def test_no_args_shows_help_like_output(self):
-        """无参数也应该显示用法"""
+        """No arguments should also display usage"""
         result = subprocess.run(
             [sys.executable, "-m", "taskengine"],
             capture_output=True, text=True,
@@ -73,7 +73,7 @@ class TestHelpCommand:
 
 
 class TestListCommand:
-    """测试 list 命令"""
+    """Test list command"""
 
     def test_list_with_tasks(self, tmp_path):
         config_path = tmp_path / "tasks.yaml"
@@ -83,7 +83,7 @@ class TestListCommand:
                     "schedule": "0 3 * * *",
                     "timeout": 3600,
                     "retry": 2,
-                    "description": "每日报表",
+                    "description": "Daily report",
                     "steps": [
                         {"name": "prepare", "command": "echo prep"},
                         {"name": "process", "command": "echo proc"},
@@ -150,7 +150,7 @@ class TestListCommand:
 
 
 class TestUnknownCommand:
-    """测试未知命令"""
+    """Test unknown command"""
 
     def test_unknown_command_exits_with_error(self):
         result = subprocess.run(

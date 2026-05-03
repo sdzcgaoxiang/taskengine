@@ -1,4 +1,4 @@
-"""集成测试 — taskengine 集成 history + running lock + dashboard CLI"""
+"""Integration tests — taskengine integration with history + running lock + dashboard CLI"""
 import json
 import os
 import subprocess
@@ -12,7 +12,7 @@ from conftest import PROJECT_ROOT
 
 
 class TestRunTaskWritesHistory:
-    """测试 run_task 执行后写入 history.json"""
+    """Test that run_task writes to history.json after execution"""
 
     def test_success_writes_history(self, tmp_path, make_task_config):
         from taskengine.engine import run_task, load_config, Logger
@@ -53,7 +53,7 @@ class TestRunTaskWritesHistory:
         assert records[0]["failed_step"] == "step1"
 
     def test_running_lock_lifecycle(self, tmp_path, make_task_config):
-        """测试运行中锁的标记和清除"""
+        """Test running lock marking and clearing"""
         from taskengine.engine import run_task, load_config, Logger
         from taskengine.history import is_running
         config_path = make_task_config([
@@ -66,11 +66,11 @@ class TestRunTaskWritesHistory:
         history_file = str(tmp_path / "history.json")
         os.makedirs(state_dir, exist_ok=True)
         result = run_task(task, "test_task", {}, logger, state_dir=state_dir, history_file=history_file)
-        # 完成后 running lock 应该被清除
+        # After completion, running lock should be cleared
         assert is_running(state_dir, "test_task") is False
 
     def test_history_cleanup_after_write(self, tmp_path, make_task_config):
-        """测试写入后自动清理"""
+        """Test auto-cleanup after writing"""
         from taskengine.engine import run_task, load_config, Logger
         from taskengine.history import load_history
         config_path = make_task_config([
@@ -81,7 +81,7 @@ class TestRunTaskWritesHistory:
         state_dir = str(tmp_path / "state")
         history_file = str(tmp_path / "history.json")
         os.makedirs(state_dir, exist_ok=True)
-        # 写 60 条记录
+        # Write 60 records
         for _ in range(60):
             logger = Logger(str(tmp_path / "logs"))
             run_task(task, "test_task", {}, logger, state_dir=state_dir, history_file=history_file, history_keep=50)
@@ -90,7 +90,7 @@ class TestRunTaskWritesHistory:
 
 
 class TestDashboardCLI:
-    """测试 dashboard 子命令"""
+    """Test dashboard subcommand"""
 
     def test_dashboard_with_history(self, tmp_path):
         from taskengine.history import append_history
@@ -101,7 +101,7 @@ class TestDashboardCLI:
             "duration": 332.1, "step_results": [{"name": "step1", "status": "success"}],
             "failed_step": None, "fail_reason": None,
         })
-        # 创建临时 tasks.yaml
+        # Create temporary tasks.yaml
         config_path = tmp_path / "tasks.yaml"
         config_path.write_text(yaml.dump({
             "tasks": {

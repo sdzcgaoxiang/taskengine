@@ -1,7 +1,7 @@
-"""TaskEngine 监控面板 — 终端表格渲染、颜色、格式化"""
+"""TaskEngine monitoring dashboard — terminal table rendering, colors, formatting"""
 from taskengine.history import get_latest_per_task, get_task_history, is_running
 
-# ─── ANSI 颜色 ───
+# ─── ANSI colors ───
 
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -13,16 +13,16 @@ RESET = "\033[0m"
 
 
 def colorize(text, color):
-    """给文本添加 ANSI 颜色"""
+    """Wrap text with an ANSI color code"""
     if color is None:
         return text
     return f"{color}{text}{RESET}"
 
 
-# ─── 格式化辅助 ───
+# ─── Formatting helpers ───
 
 def format_duration(seconds):
-    """将秒数格式化为可读的时间字符串"""
+    """Format seconds into a human-readable duration string"""
     if seconds < 0:
         seconds = 0
     total = int(seconds)
@@ -39,7 +39,7 @@ def format_duration(seconds):
 
 
 def _step_progress(step_results):
-    """计算 step 成功数/总数"""
+    """Compute step success count / total count"""
     if not step_results:
         return "0/0", False
     total = len(step_results)
@@ -48,7 +48,7 @@ def _step_progress(step_results):
 
 
 def _status_display(status, running_info):
-    """返回 (显示文本, 颜色)"""
+    """Return (display text, color)"""
     if running_info:
         return "Running", YELLOW
     if status == "success":
@@ -58,10 +58,10 @@ def _status_display(status, running_info):
     return "Never", GRAY
 
 
-# ─── 全部任务表格 ───
+# ─── All-tasks table ───
 
 def render_summary(config, history_file, state_dir=None):
-    """渲染全部任务的状态表格"""
+    """Render a status table for all tasks"""
     tasks = config.get("tasks", {})
     if not tasks:
         return "0 tasks | No tasks configured"
@@ -69,7 +69,7 @@ def render_summary(config, history_file, state_dir=None):
     latest = get_latest_per_task(history_file)
 
     lines = []
-    # 表头
+    # Table header
     header = f"{'Task':<18} {'Schedule':<14} {'Status':<12} {'Last Run':<22} {'Duration':<10} {'Steps':<8}"
     lines.append(header)
     lines.append("─" * 18 + " " + "─" * 14 + " " + "─" * 12 + " " + "─" * 22 + " " + "─" * 10 + " " + "─" * 8)
@@ -78,10 +78,10 @@ def render_summary(config, history_file, state_dir=None):
         schedule = task_config.get("schedule", "")
         total_steps = len(task_config.get("steps", []))
 
-        # 检查是否正在运行
+        # Check if currently running
         running_info = is_running(state_dir, task_name) if state_dir else False
 
-        # 获取最近执行记录
+        # Get the latest execution record
         record = latest.get(task_name)
         if record:
             status = record.get("status", "")
@@ -102,7 +102,7 @@ def render_summary(config, history_file, state_dir=None):
             f"{task_name:<18} {schedule:<14} {status_colored:<12} {finished:<22} {duration:<10} {step_display:<8}"
         )
 
-    # 汇总行
+    # Summary row
     total = len(tasks)
     success_count = sum(1 for t in tasks if latest.get(t, {}).get("status") == "success")
     failure_count = sum(1 for t in tasks if latest.get(t, {}).get("status") == "failure")
@@ -115,10 +115,10 @@ def render_summary(config, history_file, state_dir=None):
     return "\n".join(lines)
 
 
-# ─── 单任务详情 ───
+# ─── Single-task detail ───
 
 def render_task_detail(task_config, history_file, task_name, limit=5):
-    """渲染单个任务的 Step 级执行历史"""
+    """Render step-level execution history for a single task"""
     schedule = task_config.get("schedule", "")
     steps = task_config.get("steps", [])
     timeout = task_config.get("timeout", "—")
@@ -143,7 +143,7 @@ def render_task_detail(task_config, history_file, task_name, limit=5):
         status_text, color = _status_display(status, None)
         status_colored = colorize(status_text, color)
 
-        # Step 摘要
+        # Step summary
         step_results = rec.get("step_results", [])
         step_parts = []
         for s in step_results:
@@ -161,7 +161,7 @@ def render_task_detail(task_config, history_file, task_name, limit=5):
 
         lines.append(f"  {started}  {status_colored}  {duration}{reason_str}  Steps: {step_chain}")
 
-    # 最新一次的 Step 详情
+    # Step details for the latest run
     latest = records[-1]
     lines.append("")
     lines.append(f"Step details (latest run):")

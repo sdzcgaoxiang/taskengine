@@ -1,8 +1,8 @@
-"""TaskEngine - 轻量定时任务引擎（核心逻辑）
+"""TaskEngine - Lightweight Scheduled Task Engine (Core Logic)
 
-业务函数：check_success, replace_params, load_config, Logger,
-         run_step, run_task, notify, should_notify, TaskQueue 等。
-CLI 入口见 cli.py。
+Business functions: check_success, replace_params, load_config, Logger,
+         run_step, run_task, notify, should_notify, TaskQueue, etc.
+CLI entry point is in cli.py.
 """
 import json
 import os
@@ -17,12 +17,12 @@ import yaml
 from taskengine.history import append_history, cleanup_history, mark_running, clear_running
 
 
-# ─── 成功条件判定 ───
+# ─── Success Condition Evaluation ───
 
 def check_success(conditions, exit_code, output):
     """
-    多规则 OR，规则内 AND。
-    conditions 为空时默认 exit_code=0。
+    Multiple rules combined with OR; conditions within a rule combined with AND.
+    When conditions is empty, defaults to exit_code == 0.
     """
     if not conditions:
         return exit_code == 0
@@ -32,41 +32,41 @@ def check_success(conditions, exit_code, output):
         contains = rule.get("output_contains")
         not_contains = rule.get("output_not_contains")
 
-        # 检查 exit_code（如果规则里没写，就不检查）
+        # Check exit_code (skip if not specified in rule)
         exit_ok = True
         if rule_exit is not None:
             exit_ok = (exit_code == rule_exit)
 
-        # 检查 output_contains
+        # Check output_contains
         contains_ok = True
         if contains is not None:
             contains_ok = (contains in output)
 
-        # 检查 output_not_contains
+        # Check output_not_contains
         not_contains_ok = True
         if not_contains is not None:
             not_contains_ok = (not_contains not in output)
 
-        # 规则内 AND
+        # AND within rule
         if exit_ok and contains_ok and not_contains_ok:
             return True
 
     return False
 
 
-# ─── 参数替换 ───
+# ─── Parameter Replacement ───
 
 def replace_params(command, params):
-    """把 {{key}} 替换为 params[key]，缺失的保持原样"""
+    """Replace {{key}} with params[key]; leave missing keys unchanged"""
     for key, value in params.items():
         command = command.replace("{{" + key + "}}", str(value))
     return command
 
 
-# ─── 配置加载 ───
+# ─── Configuration Loading ───
 
 def load_config(config_path):
-    """加载 YAML 配置，合并 defaults"""
+    """Load YAML configuration and merge defaults"""
     with open(config_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
@@ -74,16 +74,16 @@ def load_config(config_path):
     tasks = raw.get("tasks", {})
 
     for task_name, task in tasks.items():
-        # 任务级默认值合并
+        # Merge task-level defaults
         for key in ("timeout", "retry", "retry_delay"):
             if key not in task and key in defaults:
                 task[key] = defaults[key]
 
-        # 确保 timeout 有值
+        # Ensure timeout has a value
         if "timeout" not in task:
             task["timeout"] = 300
 
-        # Step 级默认值合并
+        # Merge step-level defaults
         for step in task.get("steps", []):
             if "timeout" not in step:
                 step["timeout"] = task["timeout"]
@@ -94,18 +94,18 @@ def load_config(config_path):
             if "success_conditions" not in step:
                 step["success_conditions"] = [{"exit_code": 0}]
 
-        # http_notify 合并
+        # Merge http_notify
         if "http_notify" not in task and "http_notify" in defaults:
             task["http_notify"] = defaults["http_notify"]
 
-        # email_notify 合并
+        # Merge email_notify
         if "email_notify" not in task and "email_notify" in defaults:
             task["email_notify"] = defaults["email_notify"]
 
     return {"tasks": tasks, "defaults": defaults}
 
 
-# ─── 日志 ───
+# ─── Logging ───
 
 class Logger:
     def __init__(self, log_dir):
@@ -144,7 +144,7 @@ class Logger:
         self._write(f"Step: {step_name} END ({duration:.1f}s)")
 
     def step_output(self, output):
-        # 记录输出片段
+        # Record output snippet
         snippet = output[-500:] if len(output) > 500 else output
         for line in snippet.strip().split("\n"):
             self._write(f"  > {line}")
@@ -160,7 +160,7 @@ class Logger:
             self._file = None
 
 
-# ─── 状态持久化 ───
+# ─── State Persistence ───
 
 def save_state(state_dir, run_id, completed_steps, failed_step):
     os.makedirs(state_dir, exist_ok=True)
@@ -187,10 +187,10 @@ def clear_state(state_dir, run_id):
         os.remove(path)
 
 
-# ─── HTTP 通知 ───
+# ─── HTTP Notification ───
 
 def should_notify(on_config, task_success):
-    """判断是否需要发送通知"""
+    """Determine whether to send a notification"""
     if on_config == "always":
         return True
     if on_config == "failure":
@@ -201,7 +201,7 @@ def should_notify(on_config, task_success):
 
 
 def notify(url, payload, timeout=5):
-    """发送 HTTP 通知，失败不抛异常"""
+    """Send HTTP notification; failures are silently ignored"""
     try:
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -212,20 +212,20 @@ def notify(url, payload, timeout=5):
         )
         urllib.request.urlopen(req, timeout=timeout)
     except Exception:
-        pass  # 通知失败不影响任务
+        pass  # Notification failure should not affect the task
 
 
-# ─── Step 执行 ───
+# ─── Step Execution ───
 
 def run_step(step, params, logger, run_id="0"):
-    """执行单个 Step，处理超时、重试、成功判定"""
+    """Execute a single step, handling timeout, retry, and success evaluation"""
     command = replace_params(step["command"], params)
     timeout = step.get("timeout", 300)
     max_retry = step.get("retry", 0)
     retry_delay = step.get("retry_delay", 60)
     conditions = step.get("success_conditions", [{"exit_code": 0}])
     workdir = step.get("workdir")
-    shell_type = step.get("shell", "powershell")  # powershell 或 bash
+    shell_type = step.get("shell", "powershell")  # powershell or bash
 
     logger.step_start(step["name"], command)
 
@@ -270,7 +270,7 @@ def run_step(step, params, logger, run_id="0"):
             success = check_success(conditions, exit_code, output)
 
             if success:
-                # 找到匹配的规则描述
+                # Find the matched rule description
                 matched = _describe_matched_rule(conditions, exit_code, output)
                 logger.step_output(output)
                 logger.step_end(step["name"], True, exit_code, 0, matched_rule=matched)
@@ -314,7 +314,7 @@ def run_step(step, params, logger, run_id="0"):
 
 
 def _describe_matched_rule(conditions, exit_code, output):
-    """描述匹配到的规则"""
+    """Describe the matched rule"""
     for i, rule in enumerate(conditions):
         rule_exit = rule.get("exit_code")
         contains = rule.get("output_contains")
@@ -336,11 +336,11 @@ def _describe_matched_rule(conditions, exit_code, output):
     return None
 
 
-# ─── Task 执行 ───
+# ─── Task Execution ───
 
 def run_task(task, task_name, params, logger, state_dir=None, http_notify_config=None,
              email_notify_config=None, history_file=None, history_keep=50):
-    """执行整个 Task，从失败 Step 重跑"""
+    """Execute the entire task, resuming from the failed step"""
     steps = task["steps"]
     task_timeout = task.get("timeout", 3600)
     task_retry = task.get("retry", 0)
@@ -349,11 +349,11 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
     run_id = f"{task_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     logger.start_run(task_name, run_id)
 
-    # 标记运行中
+    # Mark as running
     if state_dir:
         mark_running(state_dir, task_name)
 
-    # 解析参数默认值
+    # Resolve parameter defaults
     resolved_params = {}
     for p in task.get("params", []):
         resolved_params[p["name"]] = p.get("default", "")
@@ -362,7 +362,7 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
     started_at = datetime.now().isoformat()
     start_time = time.time()
 
-    # 加载已有状态（用于 Task 级重试时从失败 Step 继续）
+    # Load existing state (for task-level retry, resume from failed step)
     if state_dir:
         existing = load_state(state_dir, run_id)
         if existing:
@@ -377,17 +377,17 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
         failed = False
 
         for i, step in enumerate(steps):
-            # 跳过已成功的 Step
+            # Skip already-completed steps
             if step["name"] in completed_steps:
                 logger.step_skipped(step["name"])
                 step_results.append({"name": step["name"], "success": True, "skipped": True})
                 continue
 
-            # 检查 Task 总超时
+            # Check total task timeout
             elapsed = time.time() - start_time
             if elapsed > task_timeout:
                 logger._write(f"Task timeout ({task_timeout}s) exceeded")
-                # 未执行的 step 标记为 skipped
+                # Mark unexecuted steps as skipped
                 for remaining_step in steps[i:]:
                     step_results.append({"name": remaining_step["name"], "success": None, "skipped": True})
                 failed = True
@@ -399,20 +399,20 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
 
             if result["success"]:
                 completed_steps.append(step["name"])
-                # 保存状态
+                # Save state
                 if state_dir:
                     save_state(state_dir, run_id, completed_steps, None)
             else:
                 failed = True
                 if state_dir:
                     save_state(state_dir, run_id, completed_steps, step["name"])
-                # 未执行的 step 标记为 skipped
+                # Mark unexecuted steps as skipped
                 for remaining_step in steps[i + 1:]:
                     step_results.append({"name": remaining_step["name"], "success": None, "skipped": True})
                 break
 
         if not failed:
-            # 清理状态
+            # Clean up state
             if state_dir:
                 clear_state(state_dir, run_id)
             duration = time.time() - start_time
@@ -425,12 +425,12 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
                 clear_running(state_dir, task_name)
             return result
 
-        # Task 重试
+        # Task retry
         if task_attempt < task_retry:
             logger._write(f"Task retry {task_attempt + 1}/{task_retry} after {task_retry_delay}s")
             time.sleep(task_retry_delay)
 
-    # 所有重试耗尽
+    # All retries exhausted
     if state_dir:
         clear_state(state_dir, run_id)
     duration = time.time() - start_time
@@ -445,7 +445,7 @@ def run_task(task, task_name, params, logger, state_dir=None, http_notify_config
 
 
 def _build_step_results_for_history(step_results):
-    """构建 history 记录的 step_results"""
+    """Build step_results for history records"""
     history_steps = []
     for s in step_results:
         entry = {"name": s.get("name", "?")}
@@ -463,10 +463,10 @@ def _build_step_results_for_history(step_results):
 
 
 def _write_history(history_file, task_name, run_id, result, started_at, duration, history_keep):
-    """写入运行历史记录"""
+    """Write a run history record"""
     if not history_file:
         return
-    # 找到失败的 step
+    # Find the failed step
     failed_step = None
     fail_reason = None
     for s in result.get("steps", []):
@@ -491,7 +491,7 @@ def _write_history(history_file, task_name, run_id, result, started_at, duration
 
 
 def _do_notify(task_name, result, http_notify_config):
-    """发送通知（如果配置了且条件满足）"""
+    """Send notification (if configured and conditions are met)"""
     if not http_notify_config:
         return
     url = http_notify_config.get("url")
@@ -520,14 +520,14 @@ def _do_notify(task_name, result, http_notify_config):
         "exit_code": exit_code,
         "output_snippet": output_snippet,
         "retry_count": retry_count,
-        "started_at": "",  # 由 run_task 填充更精确的
+        "started_at": "",  # Filled with more precise value by run_task
         "finished_at": datetime.now().isoformat(),
     }
     notify(url, payload)
 
 
 def _do_notify_email(task_name, result, email_notify_config, started_at, duration):
-    """发送邮件通知（如果配置了且条件满足）"""
+    """Send email notification (if configured and conditions are met)"""
     if not email_notify_config:
         return
     from notify_email import notify_email
@@ -535,10 +535,10 @@ def _do_notify_email(task_name, result, email_notify_config, started_at, duratio
     notify_email(email_notify_config, task_name, result, started_at, finished_at, duration)
 
 
-# ─── 排队执行 ───
+# ─── Queue Execution ───
 
 class TaskQueue:
-    """串行任务队列"""
+    """Serial task queue"""
 
     def __init__(self, runner):
         self.runner = runner
@@ -572,7 +572,7 @@ class TaskQueue:
 # ─── CLI ───
 
 def parse_trigger_args(args):
-    """解析 trigger 命令参数"""
+    """Parse trigger command arguments"""
     task_name = args[1] if len(args) > 1 else None
     params = {}
     for i, a in enumerate(args):

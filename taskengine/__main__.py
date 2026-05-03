@@ -1,4 +1,4 @@
-"""python -m taskengine 入口"""
+"""Entry point for python -m taskengine"""
 
 from taskengine.cli import main
 

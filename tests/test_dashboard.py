@@ -1,11 +1,11 @@
-"""Dashboard 模块测试 — 面板渲染、格式化辅助"""
+"""Dashboard module tests — panel rendering and formatting helpers"""
 import os
 
 import pytest
 
 
 class TestFormatDuration:
-    """测试时间格式化"""
+    """Test duration formatting"""
 
     def test_seconds_only(self):
         from taskengine.dashboard import format_duration
@@ -33,7 +33,7 @@ class TestFormatDuration:
 
 
 class TestColorize:
-    """测试 ANSI 颜色"""
+    """Test ANSI colors"""
 
     def test_with_color(self):
         from taskengine.dashboard import colorize, GREEN, RESET
@@ -46,7 +46,7 @@ class TestColorize:
 
 
 class TestRenderSummary:
-    """测试全部任务表格渲染"""
+    """Test all-tasks table rendering"""
 
     def test_basic_table(self, tmp_path):
         from taskengine.dashboard import render_summary
@@ -116,7 +116,7 @@ class TestRenderSummary:
 
 
 class TestRenderTaskDetail:
-    """测试单任务详情渲染"""
+    """Test single task detail rendering"""
 
     def test_basic_detail(self, tmp_path):
         from taskengine.dashboard import render_task_detail

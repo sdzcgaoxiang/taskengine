@@ -1,7 +1,7 @@
 [project]
 name = "taskengine"
 version = "1.1.0"
-description = "轻量定时任务引擎 — 多步脚本调度、监控面板、邮件通知"
+description = "Lightweight scheduled task engine with multi-step scripting, monitoring dashboard, and email notifications"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.8"

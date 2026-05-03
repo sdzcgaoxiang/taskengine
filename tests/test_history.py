@@ -1,4 +1,4 @@
-"""History 模块测试 — 运行历史记录的读写、清理、查询"""
+"""History module tests — read/write, cleanup, and query of run history records"""
 import json
 import os
 
@@ -6,7 +6,7 @@ import pytest
 
 
 class TestAppendAndLoad:
-    """测试历史记录的追加写入和读取"""
+    """Test appending and loading history records"""
 
     def test_append_creates_file_and_loads(self, tmp_path):
         from taskengine.history import append_history, load_history
@@ -45,7 +45,7 @@ class TestAppendAndLoad:
 
 
 class TestCleanup:
-    """测试历史记录清理 — 每个 Task 保留最近 N 条"""
+    """Test history cleanup — keep the latest N records per task"""
 
     def test_cleanup_keeps_latest_n(self, tmp_path):
         from taskengine.history import append_history, cleanup_history, load_history
@@ -72,7 +72,7 @@ class TestCleanup:
 
 
 class TestQuery:
-    """测试历史记录查询"""
+    """Test history querying"""
 
     def test_get_latest_per_task(self, tmp_path):
         from taskengine.history import append_history, get_latest_per_task
@@ -106,7 +106,7 @@ class TestQuery:
 
 
 class TestRunningLock:
-    """测试运行状态锁文件"""
+    """Test running state lock file"""
 
     def test_mark_and_check_running(self, tmp_path):
         from taskengine.history import mark_running, clear_running, is_running

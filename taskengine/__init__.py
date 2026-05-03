@@ -1,3 +1,3 @@
-"""TaskEngine — 轻量定时任务引擎"""
+"""TaskEngine — lightweight scheduled task engine"""
 
 __version__ = "1.1.0"
