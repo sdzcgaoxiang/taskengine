@@ -112,6 +112,8 @@ defaults:
     from: bot@example.com
     to:
       - admin@example.com
+    cc:                   # 可选，抄送列表
+      - ops@example.com
     on: failure           # failure / success / always
 ```
 
@@ -123,7 +125,8 @@ defaults:
 | username | 否 | 无 | 认证用户名 |
 | password | 否 | 无 | 认证密码 |
 | from | 是 | - | 发件人地址 |
-| to | 是 | - | 收件人列表 |
+| to | 是 | - | 主送收件人列表（多人） |
+| cc | 否 | 无 | 抄送收件人列表（多人） |
 | on | 否 | failure | `failure` 仅失败 / `success` 仅成功 / `always` 每次 |
 
 **邮件内容：** 任务名、状态（成功/失败）、开始/结束时间、耗时、各步骤执行情况（成功标记 + 耗时，失败标记 + 退出码 + 输出片段）。

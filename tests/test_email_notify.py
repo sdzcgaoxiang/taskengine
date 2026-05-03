@@ -319,3 +319,100 @@ def test_notify_email_default_on_is_failure():
         notify_email(config, "task", {"success": True, "steps": []},
                      "2026-01-01", "2026-01-01", 1.0)
         mock_send.assert_not_called()
+
+
+# ─── 抄送 (CC) 测试 ───
+
+def test_send_email_with_cc():
+    """cc 字段设置邮件头 Cc，收件人包含 to + cc"""
+    from notify_email import send_email
+
+    config = {
+        "host": "smtp.example.com", "port": 25,
+        "from": "bot@example.com",
+        "to": ["admin@example.com"],
+        "cc": ["ops@example.com", "dev@example.com"],
+    }
+    with patch("smtplib.SMTP") as mock_smtp_cls:
+        mock_smtp = MagicMock()
+        mock_smtp_cls.return_value.__enter__ = MagicMock(return_value=mock_smtp)
+        mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        send_email(config, "Subject", "Body")
+
+        call_args = mock_smtp.send_message.call_args
+        sent_msg = call_args[0][0]
+        # To 头包含主送
+        assert "admin@example.com" in sent_msg["To"]
+        # Cc 头包含两个抄送人
+        cc_header = sent_msg["Cc"]
+        assert "ops@example.com" in cc_header
+        assert "dev@example.com" in cc_header
+
+
+def test_send_email_cc_empty_list():
+    """cc 为空列表时不设置 Cc 头"""
+    from notify_email import send_email
+
+    config = {
+        "host": "smtp.example.com", "port": 25,
+        "from": "bot@example.com",
+        "to": ["admin@example.com"],
+        "cc": [],
+    }
+    with patch("smtplib.SMTP") as mock_smtp_cls:
+        mock_smtp = MagicMock()
+        mock_smtp_cls.return_value.__enter__ = MagicMock(return_value=mock_smtp)
+        mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        send_email(config, "Subject", "Body")
+
+        call_args = mock_smtp.send_message.call_args
+        sent_msg = call_args[0][0]
+        assert sent_msg.get("Cc") is None
+
+
+def test_send_email_no_cc_field():
+    """不设置 cc 字段时不设置 Cc 头（向后兼容）"""
+    from notify_email import send_email
+
+    config = {
+        "host": "smtp.example.com", "port": 25,
+        "from": "bot@example.com",
+        "to": ["admin@example.com"],
+    }
+    with patch("smtplib.SMTP") as mock_smtp_cls:
+        mock_smtp = MagicMock()
+        mock_smtp_cls.return_value.__enter__ = MagicMock(return_value=mock_smtp)
+        mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        send_email(config, "Subject", "Body")
+
+        call_args = mock_smtp.send_message.call_args
+        sent_msg = call_args[0][0]
+        assert sent_msg.get("Cc") is None
+
+
+def test_send_email_to_and_cc_multiple():
+    """主送多人 + 抄送多人，邮件头都正确"""
+    from notify_email import send_email
+
+    config = {
+        "host": "smtp.example.com", "port": 25,
+        "from": "bot@example.com",
+        "to": ["a@example.com", "b@example.com"],
+        "cc": ["c@example.com", "d@example.com"],
+    }
+    with patch("smtplib.SMTP") as mock_smtp_cls:
+        mock_smtp = MagicMock()
+        mock_smtp_cls.return_value.__enter__ = MagicMock(return_value=mock_smtp)
+        mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        send_email(config, "Subject", "Body")
+
+        call_args = mock_smtp.send_message.call_args
+        sent_msg = call_args[0][0]
+        assert "a@example.com" in sent_msg["To"]
+        assert "b@example.com" in sent_msg["To"]
+        assert "c@example.com" in sent_msg["Cc"]
+        assert "d@example.com" in sent_msg["Cc"]

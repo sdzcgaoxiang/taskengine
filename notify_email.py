@@ -10,6 +10,8 @@
     from: bot@example.com
     to:
       - admin@example.com
+    cc:                   # 可选，抄送列表
+      - ops@example.com
     on: failure           # failure / success / always，默认 failure
 """
 
@@ -75,6 +77,10 @@ def send_email(config, subject, body):
     msg["Subject"] = subject
     msg["From"] = config["from"]
     msg["To"] = ", ".join(config["to"])
+
+    cc = config.get("cc")
+    if cc:
+        msg["Cc"] = ", ".join(cc)
 
     use_ssl = config.get("ssl", False)
     host = config["host"]

@@ -45,6 +45,8 @@ defaults:
     from: bot@example.com
     to:
       - admin@example.com
+    cc:
+      - ops@example.com
     on: failure
 tasks:
   daily_report:

@@ -24,6 +24,8 @@ defaults:
     to:
       - admin@example.com
       - ops@example.com
+    cc:
+      - backup@example.com
     on: failure           # failure / success / always
 
 # ─── 任务定义 ───
@@ -56,6 +58,10 @@ tasks:
       from: bot@example.com
       to:
         - manager@example.com
+        - lead@example.com
+      cc:
+        - ops@example.com
+        - dev@example.com
       on: always           # 不论成败都发邮件
 
     steps:
